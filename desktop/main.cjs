@@ -7,7 +7,7 @@ const path = require("node:path");
 // 防止 GPU 进程在 macOS 上崩溃导致整个应用退出（直接运行 Electron 时常见）
 app.commandLine.appendSwitch("disable-gpu-compositing");
 
-const APP_NAME = "LocalDeck";
+const APP_NAME = "LifeOS";
 const HOST = "127.0.0.1";
 
 let mainWindow = null;
@@ -184,7 +184,7 @@ function resolveServerRuntimeRoot() {
   // containing non-ASCII characters, so launch through an ASCII alias when the
   // install directory is not plain ASCII.
   if (/^[\x20-\x7E]+$/.test(root)) return root;
-  const alias = path.join(app.getPath("temp"), `localdeck-runtime-${process.pid}`);
+  const alias = path.join(app.getPath("temp"), `lifeos-runtime-${process.pid}`);
   try {
     fs.unlinkSync(alias);
   } catch (error) {
@@ -276,8 +276,8 @@ async function ensureServer() {
     WRANGLER_LOG: "info",
     WRANGLER_LOG_SANITIZE: "true",
     WRANGLER_LOG_PATH: path.join(logDir, "wrangler.log"),
-    LOCALDECK_STATE_DIR: stateSourceDir(),
-    LOCALDECK_BACKUP_DIR: getBackupDir(),
+    LIFEOS_STATE_DIR: stateSourceDir(),
+    LIFEOS_BACKUP_DIR: getBackupDir(),
   };
 
   const nodeExecutable = resolveNodeExecutable();

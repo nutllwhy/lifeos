@@ -16,7 +16,7 @@ const TARGETS = {
   "linux-x64": { ext: "tar.xz", dirSuffix: "linux-x64" },
 };
 
-const targetKey = process.env.LOCALDECK_NODE_TARGET
+const targetKey = process.env.LIFEOS_NODE_TARGET
   || (process.platform === "win32" ? "win32-x64" : `${process.platform}-${process.arch}`);
 const target = TARGETS[targetKey];
 if (!target) throw new Error(`unsupported Node target: ${targetKey}`);

@@ -1,8 +1,8 @@
 {
-  "name": "localdeck-workspace",
+  "name": "lifeos-workspace",
   "version": "0.1.0",
   "description": "Local-first personal workspace for schedules, tasks, deals, spending and health",
-  "author": "LocalDeck contributors",
+  "author": "LifeOS contributors",
   "private": false,
   "license": "MIT",
   "main": "desktop/main.cjs",
@@ -50,8 +50,8 @@
   },
   "type": "module",
   "build": {
-    "appId": "app.localdeck.workspace",
-    "productName": "LocalDeck",
+    "appId": "app.lifeos.workspace",
+    "productName": "LifeOS",
     "copyright": "",
     "npmRebuild": false,
     "directories": {
@@ -107,7 +107,7 @@
       ]
     },
     "dmg": {
-      "title": "LocalDeck",
+      "title": "LifeOS",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
