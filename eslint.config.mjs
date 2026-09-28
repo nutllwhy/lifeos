@@ -7,7 +7,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     // The Electron shell is CommonJS and runs outside the bundler.
-    files: ["desktop/**/*.cjs"],
+    files: ["desktop/**/*.cjs", "build/**/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },

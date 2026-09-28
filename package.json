@@ -59,7 +59,11 @@
     },
     "files": [
       "desktop/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/next/**",
+      "!node_modules/@next/**",
+      "!node_modules/sharp/**",
+      "!node_modules/@img/**"
     ],
     "asar": false,
     "extraResources": [
@@ -136,6 +140,7 @@
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"
-    }
+    },
+    "afterPack": "build/after-pack.cjs"
   }
 }
