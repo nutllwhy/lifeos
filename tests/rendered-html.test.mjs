@@ -1,0 +1,264 @@
+import assert from "node:assert/strict";
+import { access, readdir, readFile } from "node:fs/promises";
+import test from "node:test";
+
+const root = new URL("../", import.meta.url);
+
+test("builds the finished personal workspace product", async () => {
+  const [page, layout, client, css, packageJson, desktopMain, desktopPreload, migrationFiles, runtime, personalAssistant, workspaceApi, taskScheduler, calendarLayout] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/workspace-client.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+    readFile(new URL("package.json", root), "utf8"),
+    readFile(new URL("desktop/main.cjs", root), "utf8"),
+    readFile(new URL("desktop/preload.cjs", root), "utf8"),
+    readdir(new URL("drizzle", root)).then((names) => Promise.all(names.filter((name) => name.endsWith(".sql")).map((name) => readFile(new URL(`drizzle/${name}`, root), "utf8")))),
+    readFile(new URL("db/runtime.ts", root), "utf8"),
+    readFile(new URL("lib/personal-assistant.ts", root), "utf8"),
+    readFile(new URL("app/api/workspace/route.ts", root), "utf8"),
+    readFile(new URL("lib/task-scheduler.ts", root), "utf8"),
+    readFile(new URL("lib/calendar-layout.ts", root), "utf8"),
+  ]);
+
+  assert.match(page, /BRAND\.name/);
+  assert.match(page, /og\.png/);
+  assert.match(layout, /lang="zh-CN"/);
+  assert.match(client, /今天/);
+  assert.match(client, /日历/);
+  assert.match(client, /商单/);
+  assert.match(client, /\{ id: "expenses", label: "记账"/);
+  assert.match(client, /function ExpensesView/);
+  assert.match(client, /本周.*本月.*本年.*全部/s);
+  assert.match(client, /花在哪里/);
+  assert.match(client, /支出趋势/);
+  assert.match(client, /最近明细/);
+  assert.match(client, /记一笔/);
+  assert.match(client, /kind: "expense"/);
+  assert.match(client, /编辑支出/);
+  assert.match(css, /\.expense-metrics/);
+  assert.match(css, /\.expense-category-list/);
+  assert.match(css, /\.expense-trend/);
+  assert.doesNotMatch(client, /\{ id: "content", label: "OB"/);
+  assert.doesNotMatch(client, /\{ id: "projects", label: "项目"/);
+  assert.doesNotMatch(client, /className="sidebar-section"|快速筛选/);
+  assert.match(client, /DealWorkspaceView/);
+  assert.match(client, /aria-label="商单工作区"/);
+  assert.match(client, />进度<\/button>/);
+  assert.match(client, />稿件<\/button>/);
+  assert.doesNotMatch(client, /className="integration-grid"/);
+  assert.match(client, /新建稿件/);
+  assert.doesNotMatch(client, /导出本周记录|归档本周|开启新周|className="week-ritual"|className="ritual-button/);
+  assert.match(client, /label: "设置"/);
+  assert.match(client, /演示数据/);
+  assert.doesNotMatch(client, /nav-count/);
+  assert.doesNotMatch(client, /商单 \{data\.deals\.length\} · 食材/);
+  assert.match(client, /全部记录都存在这台设备上/);
+  assert.doesNotMatch(client, /消息 ID 自动去重/);
+  assert.match(client, /智能助理/);
+  assert.match(client, /GLM-5\.3 Flash（更快）/);
+  assert.match(client, /GLM-5\.3（更强）/);
+  assert.match(client, /对话模型/);
+  assert.match(client, /助理观察/);
+  assert.match(client, /问个问题，或交代一件事/);
+  assert.match(client, /智能助理正在想一下/);
+  assert.match(client, /from "\.\.\/lib\/brand"/);
+  assert.match(client, /仅回答 · 未修改工作台/);
+  assert.match(client, /确认执行/);
+  assert.match(client, /正在想一下/);
+  assert.match(client, /AssistantMarkdown/);
+  assert.match(client, /assistantInlineMarkdown/);
+  assert.match(client, /aria-live="polite"/);
+  assert.match(css, /assistant-thinking/);
+  assert.match(css, /assistant-markdown/);
+  assert.match(css, /\.assistant-drawer \.assistant-markdown\{font-size:14px;line-height:1\.78\}/);
+  assert.match(css, /\.assistant-drawer \.assistant-message p\{font-size:14px;line-height:1\.78\}/);
+  assert.match(css, /\.assistant-drawer-form input\{font-size:14px\}/);
+  assert.match(client, /助理记忆/);
+  assert.doesNotMatch(client, /直接告诉我，我来处理/);
+  assert.match(client, /复盘日志/);
+  assert.match(client, /开始专注/);
+  assert.match(client, /结束并记录/);
+  assert.match(client, /专注用时/);
+  assert.match(client, /useState\(30\)/);
+  assert.doesNotMatch(client, /深度工作/);
+  assert.doesNotMatch(client, /className="notice-wrap"/);
+  assert.doesNotMatch(client, /aria-label="通知"/);
+  assert.doesNotMatch(client, /<span>\+<\/span>新建/);
+  assert.doesNotMatch(client, /event\.key\.toLowerCase\(\) === "q"/);
+  assert.doesNotMatch(client, /assistant-examples|assistant-capability/);
+  assert.doesNotMatch(client, /AssistantReviewCard/);
+  assert.doesNotMatch(client, /对话与复盘不限制调用次数/);
+  assert.doesNotMatch(client, /REVIEW LOG|第一篇复盘会出现在这里|晚间复盘生成后会提示你/);
+  assert.doesNotMatch(client, /DEAL FLOW|OBSIDIAN BRIDGE|LOCAL CONNECTIONS|PLATFORM BOOST|PERSONAL PRODUCTS/);
+  assert.doesNotMatch(client, /每日调用上限/);
+  assert.match(client, /每日/);
+  assert.match(client, /每周/);
+  assert.match(client, /每月/);
+  assert.match(client, /生成本周复盘/);
+  assert.match(client, /生成本月复盘/);
+  assert.doesNotMatch(client, /下一天最重要的三件事/);
+  assert.match(client, /更新状态/);
+  assert.match(client, /deal-value/);
+  assert.doesNotMatch(client, /deal\.settled \? "已结算" : "未结算"/);
+  assert.match(client, /className="deal-date-control"/);
+  assert.match(client, /type="date" value=\{deal\.deadline\?\.slice\(0, 10\)/);
+  assert.match(client, /kind: "deal", id: deal\.id, publishedAt/);
+  assert.doesNotMatch(client, /className="deal-brand"/);
+  assert.doesNotMatch(client, /下一步　/);
+  assert.match(client, /DEAL_CATEGORY_OPTIONS/);
+  assert.match(client, /name="publishedAt"/);
+  assert.match(client, /name="receivedAt"/);
+  assert.match(client, /name="paidAmount"/);
+  assert.doesNotMatch(client, /name="deadline"/);
+  assert.doesNotMatch(client, /name="nextAction"/);
+  assert.doesNotMatch(client, /name="brand"/);
+  assert.doesNotMatch(client, /name="amountLabel"/);
+  assert.match(client, /lead: \{ label: "未开始"/);
+  assert.match(client, /execution: \{ label: "进行中"/);
+  assert.match(client, /delivery: \{ label: "已完成"/);
+  assert.match(client, /paid: \{ label: "已结算"/);
+  assert.doesNotMatch(client, /用飞书|用工作台|从工作台移除|恢复到飞书|有冲突|请选择版本/);
+  assert.match(client, /冰箱里有什么/);
+  assert.match(client, /记录一次训练/);
+  assert.match(client, /训练 ·/);
+  assert.match(client, /scheduledStart: string \| null/);
+  assert.match(client, /开始时间（可留空）/);
+  assert.match(client, /calendarStartForTask/);
+  assert.match(client, /useCalendarPointerDrag/);
+  assert.match(client, /useCalendarResize/);
+  assert.match(client, /layoutCalendarDay/);
+  assert.match(client, /data-calendar-drop-start-hour/);
+  assert.match(client, /data-calendar-drop-end-hour/);
+  assert.match(client, /calendar-resize-handle/);
+  assert.match(client, /estimatedMinutes: durationMinutes/);
+  assert.match(client, /kind: "workout", id: item\.id, durationMinutes/);
+  assert.match(client, /durationMinutes: 120/);
+  assert.match(client, /任务名称/);
+  assert.match(client, /任务日期/);
+  assert.match(client, /任务时长（分钟）/);
+  assert.match(client, /name="estimatedMinutes" min="15" max="720" step="15"/);
+  assert.match(client, /setPointerCapture/);
+  assert.match(client, /drag\.source\.setPointerCapture/);
+  assert.doesNotMatch(client, /try \{ source\.setPointerCapture/);
+  assert.match(client, /suppressClick/);
+  assert.doesNotMatch(client, /setData\("text\/task"/);
+  assert.match(client, /scheduledStart: toLocalIso\(nextStart\)/);
+  assert.match(client, /calendarItems\.filter/);
+  assert.doesNotMatch(client, /calendarItems\.find/);
+  assert.match(client, /\/api\/workspace/);
+  assert.match(css, /\.today-layout/);
+  assert.match(css, /\.calendar-day-track/);
+  assert.match(css, /\.calendar-time-block/);
+  assert.match(css, /\.calendar-resize-handle/);
+  assert.match(css, /\.calendar-drag-ghost/);
+  assert.match(packageJson, /"dist:mac"/);
+  assert.match(packageJson, /"dist:win"/);
+  assert.match(desktopMain, /app\.setLoginItemSettings/);
+  assert.match(desktopMain, /new Tray/);
+  assert.match(desktopMain, /assistant_review_generate/);
+  assert.match(desktopMain, /cwd: serverRoot/);
+  assert.doesNotMatch(desktopMain, /需要选择保留哪个版本/);
+  assert.match(desktopMain, /--persist-to/);
+  assert.match(desktopPreload, /workbenchDesktop/);
+  assert.match(desktopPreload, /notifyFocusComplete/);
+  assert.ok(migrationFiles.length >= 1, "expected at least one baseline migration");
+  const migration = migrationFiles.join("\n");
+  for (const table of ["tasks", "events", "focus_sessions", "expense_entries", "deals", "content_items", "ingredients", "workouts", "cleaning_marks", "platform_promotions", "personal_products", "assistant_settings", "daily_reviews", "assistant_messages", "assistant_memories", "assistant_operations"]) {
+    assert.match(migration, new RegExp("CREATE TABLE `" + table + "`"));
+  }
+  assert.match(migration, /idx_events_start_at/);
+  assert.match(migration, /idx_daily_reviews_period/);
+  assert.match(migration, /idx_assistant_memories_status_updated/);
+  assert.match(migration, /idx_expense_entries_category_spent/);
+  assert.doesNotMatch(migration, /feishu|integration_setting|bitable/i);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS assistant_settings/);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS daily_reviews/);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS assistant_messages/);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS focus_sessions/);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS assistant_memories/);
+  assert.match(runtime, /CREATE TABLE IF NOT EXISTS expense_entries/);
+  assert.match(runtime, /assistant_rank/);
+  assert.match(runtime, /period_type/);
+  assert.match(workspaceApi, /payload\.publishedAt !== undefined/);
+  assert.match(workspaceApi, /set\.publishedAt = publishedAt/);
+  assert.match(personalAssistant, /不要虚构用户没有做过的事/);
+  assert.match(personalAssistant, /tomorrowTop3/);
+  assert.match(personalAssistant, /generateReview/);
+  assert.match(personalAssistant, /create_event/);
+  assert.match(personalAssistant, /scheduledStart 表示开始时刻/);
+  assert.match(personalAssistant, /create_personal_product/);
+  assert.match(personalAssistant, /add_expense/);
+  assert.match(personalAssistant, /export function isExpenseCaptureRequest/);
+  assert.match(personalAssistant, /export function isInventoryPurchaseRequest/);
+  assert.match(personalAssistant, /export async function runExpenseCapture/);
+  assert.match(personalAssistant, /ingredients.*食材名称/);
+  assert.match(personalAssistant, /response_format: \{ type: "json_object" \}/);
+  assert.match(personalAssistant, /reasoning_effort: "low"/);
+  assert.doesNotMatch(personalAssistant, /thinking: \{ type: "disabled" \}/);
+  assert.match(personalAssistant, /AbortSignal\.timeout\(attemptTimeoutMs\)/);
+  assert.match(personalAssistant, /RETRYABLE_AI_CODES = new Set\(\["1200", "1230", "1234", "1305"\]\)/);
+  assert.match(personalAssistant, /createAiRequestBudget\(30_000\)/);
+  assert.match(personalAssistant, /AI 服务暂时不稳定，已自动重试仍未恢复/);
+  assert.match(personalAssistant, /未指定 category 时自动分类/);
+  assert.match(personalAssistant, /记\(\?:一\|个\)\?笔\?\(\?:账\|帐\)/);
+  assert.match(personalAssistant, /export function parseAssistantConversationContent/);
+  assert.match(personalAssistant, /personalProducts/);
+  assert.match(personalAssistant, /没有目录就省略 path/);
+  assert.match(personalAssistant, /reschedule_event/);
+  assert.match(personalAssistant, /prioritize_tasks/);
+  assert.match(personalAssistant, /memories/);
+  assert.match(personalAssistant, /history\.slice\(-48\)/);
+  assert.match(personalAssistant, /"insight"/);
+  assert.match(personalAssistant, /memories 由你自动判断，无需确认/);
+  assert.match(personalAssistant, /每项都要包含可核对的数据依据/);
+  assert.match(personalAssistant, /用户在提问、征求建议、分析或讨论时，只回答/);
+  assert.match(personalAssistant, /export function inferPersonalProductAction/);
+  assert.match(personalAssistant, /export function hasExplicitMutationIntent/);
+  assert.match(personalAssistant, /你可以\|你能.*开放权限/);
+  assert.match(workspaceApi, /expenseCapture \|\| retryRequest \|\| hasExplicitMutationIntent\(message\) \|\| inferredProduct/);
+  assert.match(workspaceApi, /action\.type === "create_personal_product"/);
+  assert.match(workspaceApi, /action\.type === "add_expense"/);
+  assert.match(workspaceApi, /recentExpenses: expenseRows\.map/);
+  assert.match(workspaceApi, /payload\.kind === "expense"/);
+  assert.match(workspaceApi, /personalProducts: productRows\.map/);
+  assert.match(workspaceApi, /executeAssistantActions\(allowedActions, actionNamespace/);
+  assert.match(workspaceApi, /const directExpenseCapture = isExpenseCaptureRequest\(message\)/);
+  assert.match(workspaceApi, /findRetryableExpenseRequest\(retryHistoryRows\)/);
+  assert.match(workspaceApi, /dedupeRecentExpenses: Boolean\(retryExpense\)/);
+  assert.match(workspaceApi, /账本中已有，未重复记录/);
+  assert.match(workspaceApi, /const allPurchaseCaptureActions = expenseCapture/);
+  assert.match(workspaceApi, /const requiresConfirmation = false/);
+  assert.doesNotMatch(workspaceApi, /!allPurchaseCaptureActions && \(allowedActions\.length > 1/);
+  assert.match(workspaceApi, /assistant-add-ingredient/);
+  assert.match(workspaceApi, /backfillTaskSchedules/);
+  assert.match(workspaceApi, /autoScheduleTask/);
+  assert.match(workspaceApi, /payload\.scheduledStart/);
+  assert.match(workspaceApi, /payload\.kind === "workout" && \(payload\.startedAt !== undefined \|\| payload\.durationMinutes !== undefined\)/);
+  assert.match(workspaceApi, /训练时长需要在 5 到 720 分钟之间/);
+  assert.match(workspaceApi, /任务时长需要在 5 到 720 分钟之间/);
+  assert.match(workspaceApi, /已新增个人产品/);
+  assert.match(workspaceApi, /assistant_action_decide/);
+  assert.match(workspaceApi, /assistant_undo/);
+  assert.match(workspaceApi, /trashAssistantRows/);
+  assert.match(workspaceApi, /action\.type === "delete_tasks"/);
+  assert.match(client, /className="assistant-undo"/);
+  assert.match(workspaceApi, /assistant_memory_forget/);
+  assert.match(workspaceApi, /saveAssistantMemories/);
+  assert.match(workspaceApi, /DEFAULT_AI_MODEL = "glm-5\.3-flash"/);
+  assert.doesNotMatch(workspaceApi, /请填写项目名和路径/);
+  assert.match(client, /目录路径（可选）/);
+  assert.match(workspaceApi, /from\(assistantMessages\).*limit\(30\)/);
+  assert.doesNotMatch(page + layout + client, /codex-preview|SkeletonPreview/);
+  assert.match(taskScheduler, /export function suggestTaskStart/);
+  assert.match(taskScheduler, /export function calendarStartForTask/);
+  assert.match(taskScheduler, /fixedBusyIntervals/);
+  assert.match(calendarLayout, /export function layoutCalendarDay/);
+  assert.match(calendarLayout, /columnCount/);
+  await Promise.all([
+    access(new URL("dist/server/index.js", root)),
+    access(new URL("public/og.png", root)),
+    access(new URL("public/favicon.png", root)),
+    access(new URL("desktop/assets/icon.icns", root)),
+  ]);
+});

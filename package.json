@@ -1,0 +1,141 @@
+{
+  "name": "localdeck-workspace",
+  "version": "0.1.0",
+  "description": "Local-first personal workspace for schedules, tasks, deals, spending and health",
+  "author": "LocalDeck contributors",
+  "private": false,
+  "license": "MIT",
+  "main": "desktop/main.cjs",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+    "desktop": "npm run build && electron .",
+    "check:privacy": "node scripts/check-privacy.mjs",
+    "dist:mac": "npm run build && node scripts/fetch-node.mjs && electron-builder --mac --arm64 --x64",
+    "dist:win": "npm run build && node scripts/fetch-node.mjs && electron-builder --win --x64",
+    "test": "node scripts/check-privacy.mjs && npm run build && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/task-scheduler.test.mjs tests/calendar-layout.test.mjs tests/expenses.test.mjs tests/deals.test.mjs",
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "node:prepare": "node scripts/fetch-node.mjs"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "next": "16.3.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "wrangler": "4.92.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "4.20260702.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "drizzle-kit": "0.31.10",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.3.0",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13"
+  },
+  "type": "module",
+  "build": {
+    "appId": "app.localdeck.workspace",
+    "productName": "LocalDeck",
+    "copyright": "",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "runtime/dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "public",
+        "to": "runtime/public",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build-node",
+        "to": "node",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "desktop/assets/icon.icns",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "LocalDeck",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "icon": "desktop/assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    }
+  }
+}
