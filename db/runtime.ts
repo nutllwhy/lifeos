@@ -68,6 +68,10 @@ const statements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS workspace_settings (
+    id TEXT PRIMARY KEY, enabled_modules TEXT NOT NULL DEFAULT '[]',
+    onboarded_at TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS assistant_settings (
     id TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT 'openai-compatible',
     base_url TEXT NOT NULL, api_key TEXT NOT NULL, model TEXT NOT NULL,

@@ -16,7 +16,7 @@
     "check:privacy": "node scripts/check-privacy.mjs",
     "dist:mac": "npm run build && node scripts/fetch-node.mjs && electron-builder --mac --arm64 --x64",
     "dist:win": "npm run build && node scripts/fetch-node.mjs && electron-builder --win --x64",
-    "test": "node scripts/check-privacy.mjs && npm run build && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/task-scheduler.test.mjs tests/calendar-layout.test.mjs tests/expenses.test.mjs tests/deals.test.mjs",
+    "test": "node scripts/check-privacy.mjs && npm run build && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/task-scheduler.test.mjs tests/calendar-layout.test.mjs tests/expenses.test.mjs tests/deals.test.mjs tests/modules.test.mjs",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "node:prepare": "node scripts/fetch-node.mjs"

@@ -2,6 +2,7 @@
 
 import { FormEvent, PointerEvent as ReactPointerEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { DEAL_CATEGORY_OPTIONS } from "../lib/deals";
+import { MODULES, type ModuleId } from "../lib/modules";
 import { BRAND } from "../lib/brand";
 import { EXPENSE_CATEGORIES } from "../lib/expenses";
 import { layoutCalendarDay } from "../lib/calendar-layout";
@@ -42,7 +43,8 @@ type AssistantActionReceipt = { ok: boolean; kind: string; label: string; state?
 type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; actions: AssistantActionReceipt[]; createdAt: string };
 type AssistantMemory = { id: string; category: string; content: string; sourceMessageId: string | null; status: string; createdAt: string; updatedAt: string };
 type AssistantState = { configured: boolean; baseUrl: string; model: string; reviewTime: string; autoReview: boolean; lastCallAt: string; messages: AssistantMessage[]; memories: AssistantMemory[]; review: DailyReview | null; reviews: DailyReview[] };
-type WorkspaceData = { tasks: Task[]; events: Event[]; focusSessions: FocusSession[]; expenses: Expense[]; deals: Deal[]; contents: ContentItem[]; ingredients: Ingredient[]; workouts: Workout[]; cleanings: CleaningMark[]; promotions: PlatformPromotion[]; products: PersonalProduct[]; assistant: AssistantState; meta: { firstRun: boolean; demoInstalled: boolean } };
+type WorkspaceSettings = { enabledModules: ModuleId[]; onboarded: boolean };
+type WorkspaceData = { tasks: Task[]; events: Event[]; focusSessions: FocusSession[]; expenses: Expense[]; deals: Deal[]; contents: ContentItem[]; ingredients: Ingredient[]; workouts: Workout[]; cleanings: CleaningMark[]; promotions: PlatformPromotion[]; products: PersonalProduct[]; assistant: AssistantState; meta: { firstRun: boolean; demoInstalled: boolean }; settings: WorkspaceSettings };
 
 const AI_MODEL_OPTIONS = [
   { value: "glm-5.3-flash", label: "GLM-5.3 Flash（更快）" },
@@ -152,6 +154,7 @@ export function Workspace() {
     tasks: [], events: [], focusSessions: [], expenses: [], deals: [], contents: [], ingredients: [], workouts: [], cleanings: [], promotions: [], products: [],
     assistant: { configured: false, baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-5.3-flash", reviewTime: "21:30", autoReview: true, lastCallAt: "", messages: [], memories: [], review: null, reviews: [] },
     meta: { firstRun: true, demoInstalled: false },
+    settings: { enabledModules: [], onboarded: true },
   });
   const [loading, setLoading] = useState(true);
   const [composer, setComposer] = useState<"task" | "event" | "deal" | "content" | null>(null);
@@ -159,6 +162,7 @@ export function Workspace() {
   const [composerDue, setComposerDue] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [demoBusy, setDemoBusy] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
   const [assistantGenerating, setAssistantGenerating] = useState(false);
   const [assistantChatting, setAssistantChatting] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -311,6 +315,32 @@ export function Workspace() {
     }
   }
 
+  async function finishSetup(modules: ModuleId[], withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null = null) {
+    try {
+      const response = await fetch("/api/workspace", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "workspace_settings", enabledModules: modules, onboarded: true }),
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "设置保存失败");
+      if (ai?.apiKey.trim()) {
+        await fetch("/api/workspace", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind: "assistant_config", baseUrl: ai.baseUrl, model: ai.model, apiKey: ai.apiKey }),
+        });
+      }
+      if (withDemo) {
+        await fetch("/api/workspace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "demo_load" }) });
+      }
+      await load();
+      setNotice(withDemo ? "设置完成，已载入演示数据" : "设置完成，随时可以在设置页调整模块");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "设置没有保存上");
+    }
+  }
+
   const generateAssistantReview = useCallback(async (periodType: ReviewPeriod = "daily", automatic = false, dataDate?: string) => {
     if (!data.assistant.configured) {
       setView("connections");
@@ -412,15 +442,22 @@ export function Workspace() {
   }, [assistantGenerating, data.assistant.autoReview, data.assistant.configured, data.assistant.reviewTime, data.assistant.reviews, generateAssistantReview, loading]);
 
   const dateLabel = mounted ? new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date()) : "";
-  const hour = new Date().getHours();
-  const greeting = hour < 5 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
+  // Derived after mount: computing it during render makes the server and the
+  // client disagree whenever a render straddles an hour boundary.
+  const hour = mounted ? new Date().getHours() : -1;
+  const greeting = hour < 0 ? "" : hour < 5 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
+
+  const enabled = data.settings.enabledModules;
+  const visibleNav = enabled.length
+    ? nav.filter((item) => item.id === "today" || item.id === "calendar" || item.id === "connections" || enabled.includes(item.id as ModuleId))
+    : nav;
 
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">{BRAND.mark}</span><span>{BRAND.name}</span></div>
         <nav aria-label="主导航">
-          {nav.map((item) => (
+          {visibleNav.map((item) => (
             <button key={item.id} className={view === item.id ? "nav-item active" : "nav-item"} onClick={() => setView(item.id)}>
               <span className="nav-icon">{item.icon}</span>{item.label}
             </button>
@@ -445,6 +482,17 @@ export function Workspace() {
           </div>
         </header>
 
+        {(setupOpen || !data.settings.onboarded) && !loading && (
+          <SetupWizard
+            assistant={data.assistant}
+            onClose={() => setSetupOpen(false)}
+            onFinish={async (modules, withDemo, ai) => {
+              setSetupOpen(false);
+              await finishSetup(modules, withDemo, ai);
+            }}
+          />
+        )}
+
         {data.meta.firstRun && !loading && (
           <div className="workflow-alerts">
             <article className="workflow-alert">
@@ -467,7 +515,7 @@ export function Workspace() {
             {view === "health" && <HealthView ingredients={data.ingredients} workouts={data.workouts} refresh={load} notify={setNotice} />}
             {view === "platforms" && <PlatformsView promotions={data.promotions} refresh={load} notify={setNotice} />}
             {view === "products" && <ProductsView products={data.products} refresh={load} notify={setNotice} />}
-            {view === "connections" && <ConnectionsView assistant={data.assistant} meta={data.meta} demoBusy={demoBusy} onDemo={loadDemo} refresh={load} notify={setNotice} />}
+            {view === "connections" && <ConnectionsView assistant={data.assistant} meta={data.meta} settings={data.settings} saveModules={finishSetup} openSetup={() => setSetupOpen(true)} demoBusy={demoBusy} onDemo={loadDemo} refresh={load} notify={setNotice} />}
             {view === "review" && <ReviewView tasks={data.tasks} events={data.events} focusSessions={data.focusSessions} assistant={data.assistant} generating={assistantGenerating} generate={(periodType) => generateAssistantReview(periodType, false, data.assistant.reviewTime === "00:00" ? reviewDataDate(data.assistant.reviewTime) : undefined)} openSettings={() => setView("connections")} />}
           </div>
         )}
@@ -1891,7 +1939,19 @@ function ContentView({ contents, deals, refresh, openComposer, notify }: { conte
   </section>;
 }
 
-function ConnectionsView({ assistant, meta, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; settings: WorkspaceSettings; saveModules: (modules: ModuleId[], withDemo: boolean, ai: null) => Promise<void>; openSetup: () => void; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
+  const [moduleBusy, setModuleBusy] = useState(false);
+  async function toggleModule(id: ModuleId) {
+    setModuleBusy(true);
+    try {
+      const current = settings.enabledModules.length ? settings.enabledModules : [...MODULES.map((module) => module.id)];
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      await saveModules([...next], false, null);
+      await refresh();
+    } finally {
+      setModuleBusy(false);
+    }
+  }
   const [savingAssistant, setSavingAssistant] = useState(false);
   const [forgettingMemory, setForgettingMemory] = useState<string | null>(null);
   const [aiBaseUrl, setAiBaseUrl] = useState(assistant.baseUrl);
@@ -2013,6 +2073,20 @@ function ConnectionsView({ assistant, meta, demoBusy, onDemo, refresh, notify }:
         <button className="primary-button" disabled={savingAssistant}>{savingAssistant ? "正在保存…" : "保存助理设置"}</button>
       </form>
       <p className="settings-footnote">API Key 仅保存在本机；对话或生成复盘时会发送必要的工作台摘要。</p>
+    </section>
+
+    <section className="panel settings-data-panel">
+      <div className="panel-heading"><h2>模块</h2><button className="connection-action" onClick={openSetup}>重新运行设置流程</button></div>
+      <p className="settings-footnote" style={{ padding: "0 20px 10px" }}>关掉用不到的模块，侧栏就不再显示它。今天、日历和设置常驻。</p>
+      <div className="setup-modules" style={{ padding: "0 20px 18px" }}>
+        {MODULES.map((module) => {
+          const on = settings.enabledModules.length === 0 || settings.enabledModules.includes(module.id);
+          return <label className={on ? "setup-module on" : "setup-module"} key={module.id}>
+            <input type="checkbox" checked={on} disabled={moduleBusy} onChange={() => void toggleModule(module.id)} />
+            <span><strong>{module.label}</strong><small>{module.blurb}</small></span>
+          </label>;
+        })}
+      </div>
     </section>
 
     <section className="panel settings-data-panel">
@@ -2185,4 +2259,82 @@ function Composer({ kind, close, saved, editingTask, defaultDueDate, notify }: {
   const today = now.toISOString().slice(0, 10);
   const thisMonth = today.slice(0, 7);
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><form className="composer" onSubmit={submit}><header><h2>{kind === "task" ? (editingTask ? "编辑任务" : "新建任务") : kind === "event" ? "安排日程" : kind === "content" ? "新建稿件" : "新建商单"}</h2><button type="button" onClick={close} aria-label="关闭">×</button></header>{kind === "task" && <><label>任务名称<input name="title" autoFocus required defaultValue={editingTask?.title ?? ""} placeholder="例如：整理商单初稿" /></label><div className="form-row"><label>项目<input name="project" defaultValue={editingTask?.project ?? "收件箱"} /></label><label>任务时长（分钟）<input type="number" name="estimatedMinutes" min="15" max="720" step="15" required defaultValue={editingTask?.estimatedMinutes ?? 30} /></label></div><div className="form-row"><label>优先级<select name="priority" defaultValue={editingTask?.priority ?? "medium"}><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label><label>任务日期<input type="date" name="dueDate" defaultValue={editingTask?.dueDate ? editingTask.dueDate.slice(0, 10) : defaultDueDate ?? ""} /></label></div><label>开始时间（可留空）<input type="time" name="scheduledTime" defaultValue={timeFieldValue(editingTask ? calendarStartForTask(editingTask) : null)} /></label></>}{kind === "event" && <><label>日程标题<input name="title" autoFocus required placeholder="例如：商单方案对齐" /></label><div className="form-row"><label>开始<input type="datetime-local" name="startAt" required defaultValue={now.toISOString().slice(0, 16)} /></label><label>结束<input type="datetime-local" name="endAt" required defaultValue={later.toISOString().slice(0, 16)} /></label></div><label>地点<input name="location" placeholder="线上会议 / 线下" /></label></>}{kind === "content" && <><label>稿件标题<input name="title" autoFocus required placeholder="例如：AI 客服实测脚本" /></label><div className="form-row"><label>类型<input name="type" placeholder="长视频脚本 / 公众号文章…" /></label><label>状态<select name="status"><option>构思中</option><option>写作中</option><option>初稿完成</option><option>待审核</option><option>待发布</option><option>已发布</option><option>已归档</option></select></label></div><div className="form-row"><label>字数<input type="number" name="wordCount" min="0" step="50" defaultValue="0" /></label><label>待补点<input type="number" name="pendingCount" min="0" step="1" defaultValue="0" /></label></div><label>关联商单<input name="linkedDeal" placeholder="留空表示不关联" /></label></>}{kind === "deal" && <><label>商单名称<input name="title" autoFocus required placeholder="例如：新品公众号合作" /></label><fieldset className="deal-category-field"><legend>商单类别</legend><div className="deal-category-options">{DEAL_CATEGORY_OPTIONS.map((category) => <label key={category}><input type="checkbox" name="categories" value={category} /><span>{category}</span></label>)}</div></fieldset><div className="form-row"><label>状态<select name="stage"><option value="lead">未开始</option><option value="execution">进行中</option><option value="delivery">已完成</option><option value="paid">已结算</option></select></label><label>归属月份<input type="month" name="month" defaultValue={thisMonth} /></label></div><div className="form-row"><label>执行价格<input type="number" name="price" min="0" step="1" inputMode="decimal" /></label><label>打款金额<input type="number" name="paidAmount" min="0" step="0.01" inputMode="decimal" /></label></div><div className="form-row"><label>接单日期<input type="date" name="receivedAt" defaultValue={today} /></label><label>发布日期<input type="date" name="publishedAt" /></label></div></>}<footer><span>按 Esc 关闭</span>{kind === "task" && editingTask && <button type="button" className="danger-button" disabled={deleting} onClick={() => void removeTask()}>{deleting ? "正在删除…" : "删除任务"}</button>}<button className="primary-button" disabled={saving}>{saving ? "正在保存…" : editingTask ? "保存修改" : "收入工作台"}</button></footer></form></div>;
+}
+
+function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<void> }) {
+  const [step, setStep] = useState(0);
+  const [picked, setPicked] = useState<ModuleId[]>([...MODULES.map((module) => module.id)]);
+  const [withDemo, setWithDemo] = useState(true);
+  const [baseUrl, setBaseUrl] = useState(assistant.baseUrl);
+  const [model, setModel] = useState(assistant.model);
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const steps = ["欢迎", "选择模块", "智能助理", "开始使用"];
+
+  function toggle(id: ModuleId) {
+    setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+  async function submit() {
+    setSaving(true);
+    try {
+      await onFinish(picked, withDemo, apiKey.trim() ? { baseUrl, model, apiKey } : null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <div className="modal-backdrop setup-backdrop"><div className="setup-card">
+    <header className="setup-header">
+      <div><p className="eyebrow">{`第 ${step + 1} / ${steps.length} 步`}</p><h2>{steps[step]}</h2></div>
+      {onClose && <button type="button" className="setup-ghost" onClick={onClose}>稍后再说</button>}
+      <div className="setup-dots">{steps.map((label, index) => <span key={label} className={index === step ? "on" : ""} />)}</div>
+    </header>
+
+    {step === 0 && <div className="setup-body">
+      <p>LifeOS 把日程、任务、商单、记账、饮食和训练收在同一个本地界面里。</p>
+      <ul className="setup-facts">
+        <li><strong>数据只在这台设备上</strong>没有账号，不上传，不同步到任何第三方。</li>
+        <li><strong>助理用你自己的模型服务</strong>只有你填写的 API 地址会收到请求，Key 只存在本地。</li>
+        <li><strong>用不到的模块可以关掉</strong>关掉后侧栏不再出现，之后随时能改。</li>
+      </ul>
+    </div>}
+
+    {step === 1 && <div className="setup-body">
+      <p className="setup-hint">点掉你暂时不需要的，默认全部开启。</p>
+      <div className="setup-modules">{MODULES.map((module) => (
+        <label key={module.id} className={picked.includes(module.id) ? "setup-module on" : "setup-module"}>
+          <input type="checkbox" checked={picked.includes(module.id)} onChange={() => toggle(module.id)} />
+          <span><strong>{module.label}</strong><small>{module.blurb}</small></span>
+        </label>
+      ))}</div>
+    </div>}
+
+    {step === 2 && <div className="setup-body">
+      <p className="setup-hint">这一步可以完全跳过，之后在设置页里填也一样。</p>
+      <label>API 地址<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://.../v4" autoComplete="off" /></label>
+      <label>对话模型<input value={model} onChange={(event) => setModel(event.target.value)} placeholder="glm-5.3-flash" autoComplete="off" /></label>
+      <label>API Key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="留空表示暂时不配置" autoComplete="new-password" /></label>
+      <p className="settings-footnote">Key 只写入本机数据库，页面读取配置时不会把它回传给浏览器。</p>
+    </div>}
+
+    {step === 3 && <div className="setup-body">
+      <p className="setup-hint">你可以从空白开始，也可以先载入一套虚构的演示数据看看每个视图用起来是什么样子。</p>
+      <label className={withDemo ? "setup-choice on" : "setup-choice"}>
+        <input type="radio" name="setupdata" checked={withDemo} onChange={() => setWithDemo(true)} />
+        <span><strong>载入演示数据</strong><small>虚构的商单、支出、食材与复盘，随时可以在设置里一键清除。</small></span>
+      </label>
+      <label className={withDemo ? "setup-choice" : "setup-choice on"}>
+        <input type="radio" name="setupdata" checked={!withDemo} onChange={() => setWithDemo(false)} />
+        <span><strong>从空白开始</strong><small>直接添加你自己的第一条任务和日程。</small></span>
+      </label>
+      <p className="settings-footnote">已选模块：{picked.length ? picked.map((id) => MODULES.find((module) => module.id === id)?.label).join("、") : "仅核心视图"}</p>
+    </div>}
+
+    <footer className="setup-footer">
+      <button type="button" className="setup-ghost" disabled={step === 0 || saving} onClick={() => setStep((current) => current - 1)}>上一步</button>
+      {step < steps.length - 1
+        ? <button type="button" className="primary-button" onClick={() => setStep((current) => current + 1)}>下一步</button>
+        : <button type="button" className="primary-button" disabled={saving} onClick={() => void submit()}>{saving ? "正在准备…" : "进入 LifeOS"}</button>}
+    </footer>
+  </div></div>;
 }

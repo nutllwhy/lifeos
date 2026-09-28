@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { ensureDatabase } from "../../../db/runtime";
-import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, cleaningMarks, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts } from "../../../db/schema";
+import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, cleaningMarks, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts, workspaceSettings } from "../../../db/schema";
 import { buildDemoRows } from "../../../lib/demo-data";
+import { normalizeModules, type ModuleId } from "../../../lib/modules";
 import { DEAL_CATEGORY_OPTIONS, DEAL_STAGES, normalizeDealCategories, normalizeDealStage, toDealView, type DealStage } from "../../../lib/deals";
 import { findRetryableExpenseRequest, generateReview, hasExplicitMutationIntent, inferEventDeletionAction, inferPersonalProductAction, isAssistantRetryRequest, isExpenseCaptureRequest, runAssistantConversation, runExpenseCapture, type AssistantAction, type AssistantMemoryWrite, type ConversationContext, type ReviewContext } from "../../../lib/personal-assistant";
 import { expenseAmountToCents, expenseDateTime, normalizeExpenseCategory } from "../../../lib/expenses";
@@ -821,21 +822,36 @@ async function finalizeExpiredFocusSessions() {
   }
 }
 
-async function loadDemoData() {
+async function readWorkspaceSettings() {
+  const db = getDb();
+  const [row] = await db.select().from(workspaceSettings).where(eq(workspaceSettings.id, "workspace")).limit(1);
+  if (!row) {
+    await db.insert(workspaceSettings).values({ id: "workspace", enabledModules: "[]" }).onConflictDoNothing();
+    return { enabledModules: [] as ModuleId[], onboardedAt: null as string | null };
+  }
+  return { enabledModules: normalizeModules(JSON.parse(row.enabledModules) as unknown), onboardedAt: row.onboardedAt };
+}
+
+// Demo rows exist to show what a filled-in view looks like, so only the modules
+// the user switched on get populated.
+async function loadDemoData(enabled: readonly ModuleId[]) {
   const db = getDb();
   const rows = buildDemoRows();
   const now = new Date().toISOString();
+  const on = (id: ModuleId) => enabled.length === 0 || enabled.includes(id);
   await db.insert(tasks).values(rows.tasks.map((row) => ({ ...row, updatedAt: now }))).onConflictDoNothing();
   await db.insert(events).values(rows.events).onConflictDoNothing();
-  await db.insert(deals).values(rows.deals.map((row) => ({ ...row, updatedAt: now }))).onConflictDoNothing();
-  await db.insert(expenseEntries).values(rows.expenses).onConflictDoNothing();
-  await db.insert(contentItems).values(rows.contents).onConflictDoNothing();
-  await db.insert(ingredients).values(rows.ingredients).onConflictDoNothing();
-  await db.insert(workouts).values(rows.workouts).onConflictDoNothing();
-  await db.insert(cleaningMarks).values(rows.cleanings).onConflictDoNothing();
-  await db.insert(platformPromotions).values(rows.promotions).onConflictDoNothing();
-  await db.insert(personalProducts).values(rows.products).onConflictDoNothing();
-  await db.insert(dailyReviews).values(rows.reviews).onConflictDoNothing();
+  if (on("deals")) await db.insert(deals).values(rows.deals.map((row) => ({ ...row, updatedAt: now }))).onConflictDoNothing();
+  if (on("expenses")) await db.insert(expenseEntries).values(rows.expenses).onConflictDoNothing();
+  if (on("contents")) await db.insert(contentItems).values(rows.contents).onConflictDoNothing();
+  if (on("health")) {
+    await db.insert(ingredients).values(rows.ingredients).onConflictDoNothing();
+    await db.insert(workouts).values(rows.workouts).onConflictDoNothing();
+    await db.insert(cleaningMarks).values(rows.cleanings).onConflictDoNothing();
+  }
+  if (on("platforms")) await db.insert(platformPromotions).values(rows.promotions).onConflictDoNothing();
+  if (on("products")) await db.insert(personalProducts).values(rows.products).onConflictDoNothing();
+  if (on("review")) await db.insert(dailyReviews).values(rows.reviews).onConflictDoNothing();
 }
 
 async function clearDemoData() {
@@ -877,6 +893,7 @@ export async function GET() {
       db.select().from(assistantMessages).orderBy(desc(assistantMessages.createdAt)).limit(30),
       db.select().from(assistantMemories).where(eq(assistantMemories.status, "active")).orderBy(desc(assistantMemories.updatedAt)).limit(100),
     ]);
+    const settings = await readWorkspaceSettings();
     const firstRun = !taskRows.length && !eventRows.length && !dealRows.length && !expenseRows.length && !ingredientRows.length && !workoutRows.length;
     const demoInstalled = [taskRows, dealRows, expenseRows, ingredientRows].some((rows) =>
       rows.some((row) => row.id.startsWith("demo-"))
@@ -923,6 +940,7 @@ export async function GET() {
         })),
       },
       meta: { firstRun, demoInstalled },
+      settings: { enabledModules: settings.enabledModules, onboarded: Boolean(settings.onboardedAt) },
     });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "加载失败" }, { status: 500 });
@@ -1290,8 +1308,25 @@ export async function POST(request: Request) {
       return Response.json({ item: created }, { status: 201 });
     }
 
+    if (kind === "workspace_settings") {
+      const enabledModules = normalizeModules(payload.enabledModules);
+      const now = new Date().toISOString();
+      const [existing] = await db.select().from(workspaceSettings).where(eq(workspaceSettings.id, "workspace")).limit(1);
+      const onboardedAt = payload.onboarded === false ? null : (existing?.onboardedAt ?? now);
+      await db.insert(workspaceSettings).values({
+        id: "workspace",
+        enabledModules: JSON.stringify(enabledModules),
+        onboardedAt,
+        updatedAt: now,
+      }).onConflictDoUpdate({
+        target: workspaceSettings.id,
+        set: { enabledModules: JSON.stringify(enabledModules), onboardedAt, updatedAt: now },
+      });
+      return Response.json({ ok: true, enabledModules, onboarded: Boolean(onboardedAt) });
+    }
+
     if (kind === "demo_load") {
-      await loadDemoData();
+      await loadDemoData((await readWorkspaceSettings()).enabledModules);
       return Response.json({ ok: true });
     }
 

@@ -147,6 +147,13 @@ export const personalProducts = sqliteTable("personal_products", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("idx_personal_products_stage").on(table.stage)]);
 
+export const workspaceSettings = sqliteTable("workspace_settings", {
+  id: text("id").primaryKey(),
+  enabledModules: text("enabled_modules").notNull().default("[]"),
+  onboardedAt: text("onboarded_at"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const assistantSettings = sqliteTable("assistant_settings", {
   id: text("id").primaryKey(),
   provider: text("provider").notNull().default("openai-compatible"),
