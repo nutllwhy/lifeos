@@ -297,3 +297,10 @@ button { color:inherit; }
 .setup-ghost{border:1px solid #ddd8cd;background:transparent;border-radius:10px;padding:0 14px;height:38px;font-size:13px;color:#5d6b62;cursor:pointer}
 .setup-ghost:disabled{opacity:.4;cursor:default}
 @media (max-width:640px){.setup-modules{grid-template-columns:1fr}}
+
+.range-empty{margin:0;font-size:12.5px;color:#7d8a81;display:flex;align-items:center;gap:8px}
+.range-empty button{border:1px solid #cfd8cd;background:transparent;border-radius:99px;padding:2px 10px;font-size:11.5px;color:#16281f;cursor:pointer}
+.goals-editor{display:grid;gap:10px;padding:0 20px 18px}
+.goals-editor label{display:grid;gap:6px;font-size:12px;color:#5d6b62}
+.goals-editor textarea{border:1px solid #ddd8cd;border-radius:10px;padding:9px 11px;font-size:13px;font-family:inherit;background:#fff;color:#16281f;resize:vertical;line-height:1.6}
+.goals-editor-actions{display:flex;justify-content:flex-end}

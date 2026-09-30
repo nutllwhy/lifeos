@@ -70,6 +70,7 @@ const statements = [
   )`,
   `CREATE TABLE IF NOT EXISTS workspace_settings (
     id TEXT PRIMARY KEY, enabled_modules TEXT NOT NULL DEFAULT '[]',
+    goals TEXT NOT NULL DEFAULT '{"annual":[],"quarterly":[]}',
     onboarded_at TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS assistant_settings (

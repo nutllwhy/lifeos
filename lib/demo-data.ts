@@ -25,6 +25,11 @@ function monthKey(offset: number) {
 
 const DEMO = "demo";
 
+export const demoGoals = {
+  annual: ["把内容分发稳定到三个平台", "做出一个有人愿意付费的小工具"],
+  quarterly: ["完成 5 条长视频", "上线工作台开源版", "每周训练 3 次不断档"],
+};
+
 export const demoTasks = [
   { title: "整理「AI 做客服」选题的证据链", project: "内容商单", priority: "high", estimatedMinutes: 90, dueOffset: 0, dueHour: 18 },
   { title: "写云梯智能公众号初稿", project: "内容商单", priority: "high", estimatedMinutes: 120, dueOffset: 1, dueHour: 17 },

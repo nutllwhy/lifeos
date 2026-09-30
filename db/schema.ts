@@ -150,6 +150,7 @@ export const personalProducts = sqliteTable("personal_products", {
 export const workspaceSettings = sqliteTable("workspace_settings", {
   id: text("id").primaryKey(),
   enabledModules: text("enabled_modules").notNull().default("[]"),
+  goals: text("goals").notNull().default('{"annual":[],"quarterly":[]}'),
   onboardedAt: text("onboarded_at"),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

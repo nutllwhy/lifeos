@@ -3,6 +3,7 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { DEAL_CATEGORY_OPTIONS } from "../lib/deals";
 import { MODULES, type ModuleId } from "../lib/modules";
+import { currentQuarterLabel, type Goals } from "../lib/goals";
 import { BRAND } from "../lib/brand";
 import { EXPENSE_CATEGORIES } from "../lib/expenses";
 import { layoutCalendarDay } from "../lib/calendar-layout";
@@ -43,7 +44,7 @@ type AssistantActionReceipt = { ok: boolean; kind: string; label: string; state?
 type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; actions: AssistantActionReceipt[]; createdAt: string };
 type AssistantMemory = { id: string; category: string; content: string; sourceMessageId: string | null; status: string; createdAt: string; updatedAt: string };
 type AssistantState = { configured: boolean; baseUrl: string; model: string; reviewTime: string; autoReview: boolean; lastCallAt: string; messages: AssistantMessage[]; memories: AssistantMemory[]; review: DailyReview | null; reviews: DailyReview[] };
-type WorkspaceSettings = { enabledModules: ModuleId[]; onboarded: boolean };
+type WorkspaceSettings = { enabledModules: ModuleId[]; onboarded: boolean; goals: Goals };
 type WorkspaceData = { tasks: Task[]; events: Event[]; focusSessions: FocusSession[]; expenses: Expense[]; deals: Deal[]; contents: ContentItem[]; ingredients: Ingredient[]; workouts: Workout[]; cleanings: CleaningMark[]; promotions: PlatformPromotion[]; products: PersonalProduct[]; assistant: AssistantState; meta: { firstRun: boolean; demoInstalled: boolean }; settings: WorkspaceSettings };
 
 const AI_MODEL_OPTIONS = [
@@ -154,7 +155,7 @@ export function Workspace() {
     tasks: [], events: [], focusSessions: [], expenses: [], deals: [], contents: [], ingredients: [], workouts: [], cleanings: [], promotions: [], products: [],
     assistant: { configured: false, baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-5.3-flash", reviewTime: "21:30", autoReview: true, lastCallAt: "", messages: [], memories: [], review: null, reviews: [] },
     meta: { firstRun: true, demoInstalled: false },
-    settings: { enabledModules: [], onboarded: true },
+    settings: { enabledModules: [], onboarded: true, goals: { annual: [], quarterly: [] } },
   });
   const [loading, setLoading] = useState(true);
   const [composer, setComposer] = useState<"task" | "event" | "deal" | "content" | null>(null);
@@ -315,12 +316,12 @@ export function Workspace() {
     }
   }
 
-  async function finishSetup(modules: ModuleId[], withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null = null) {
+  async function finishSetup(modules: ModuleId[], goals?: Goals, withDemo = false, ai: { baseUrl: string; model: string; apiKey: string } | null = null) {
     try {
       const response = await fetch("/api/workspace", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: "workspace_settings", enabledModules: modules, onboarded: true }),
+        body: JSON.stringify({ kind: "workspace_settings", enabledModules: modules, goals, onboarded: true }),
       });
       const result = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(result.error || "设置保存失败");
@@ -486,9 +487,9 @@ export function Workspace() {
           <SetupWizard
             assistant={data.assistant}
             onClose={() => setSetupOpen(false)}
-            onFinish={async (modules, withDemo, ai) => {
+            onFinish={async (modules, goals, withDemo, ai) => {
               setSetupOpen(false);
-              await finishSetup(modules, withDemo, ai);
+              await finishSetup(modules, goals, withDemo, ai);
             }}
           />
         )}
@@ -508,7 +509,7 @@ export function Workspace() {
 
         {loading ? <LoadingState /> : (
           <div className="view-stage">
-            {view === "today" && <TodayView events={data.events} tasks={openTasks} allTasks={data.tasks} deals={data.deals} contents={data.contents} workouts={data.workouts} cleanings={data.cleanings} assistant={data.assistant} chatting={assistantChatting} assistantOpen={assistantOpen} assistantDeciding={assistantDeciding} setAssistantOpen={setAssistantOpen} sendAssistantMessage={sendAssistantMessage} decideAssistantActions={decideAssistantActions} undoAssistantAction={undoAssistantAction} openAssistantSettings={() => setView("connections")} openReviewLog={() => setView("review")} toggleTask={toggleTask} openTaskOn={(day) => { const pad = (n: number) => String(n).padStart(2, "0"); setComposerDue(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`); setEditingTask(null); setComposer("task"); }} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
+            {view === "today" && <TodayView events={data.events} tasks={openTasks} allTasks={data.tasks} deals={data.deals} contents={data.contents} workouts={data.workouts} cleanings={data.cleanings} goals={data.settings.goals} assistant={data.assistant} chatting={assistantChatting} assistantOpen={assistantOpen} assistantDeciding={assistantDeciding} setAssistantOpen={setAssistantOpen} sendAssistantMessage={sendAssistantMessage} decideAssistantActions={decideAssistantActions} undoAssistantAction={undoAssistantAction} openAssistantSettings={() => setView("connections")} openReviewLog={() => setView("review")} toggleTask={toggleTask} openTaskOn={(day) => { const pad = (n: number) => String(n).padStart(2, "0"); setComposerDue(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`); setEditingTask(null); setComposer("task"); }} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
             {view === "calendar" && <CalendarView events={data.events} workouts={data.workouts} cleanings={data.cleanings} tasks={data.tasks} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
             {view === "deals" && <DealWorkspaceView deals={data.deals} contents={data.contents} refresh={load} openDealComposer={() => setComposer("deal")} openContentComposer={() => setComposer("content")} notify={setNotice} />}
             {view === "expenses" && <ExpensesView expenses={data.expenses} refresh={load} notify={setNotice} />}
@@ -746,7 +747,42 @@ function CalendarResizeBubble({ visual }: { visual: { minutes: number; x: number
   return <div className="calendar-resize-bubble" style={{ left: visual.x + 12, top: visual.y - 12 }}>{durationText(visual.minutes)}</div>;
 }
 
-function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanings, assistant, chatting, assistantOpen, assistantDeciding, setAssistantOpen, sendAssistantMessage, decideAssistantActions, undoAssistantAction, openAssistantSettings, openReviewLog, toggleTask, openTaskOn, openEdit, refresh, notify }: { events: Event[]; tasks: Task[]; allTasks: Task[]; deals: Deal[]; contents: ContentItem[]; workouts: Workout[]; cleanings: CleaningMark[]; assistant: AssistantState; chatting: boolean; assistantOpen: boolean; assistantDeciding: string | null; setAssistantOpen: (open: boolean) => void; sendAssistantMessage: (message: string) => Promise<void>; decideAssistantActions: (replyId: string, decision: "confirm" | "cancel") => Promise<void>; undoAssistantAction: (replyId: string, operationId: string) => Promise<void>; openAssistantSettings: () => void; openReviewLog: () => void; toggleTask: (task: Task) => void; openTaskOn: (day: Date) => void; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function GoalsEditor({ goals, busy, onSave, notify }: { goals: Goals; busy: boolean; onSave: (goals: Goals) => Promise<void>; notify: (message: string) => void }) {
+  const [annual, setAnnual] = useState(goals.annual.join("\n"));
+  const [quarterly, setQuarterly] = useState(goals.quarterly.join("\n"));
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave({
+        annual: annual.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
+        quarterly: quarterly.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
+      });
+      notify("目标已保存");
+    } catch {
+      notify("目标没有保存上");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <div className="goals-editor">
+    <label>年度计划<textarea rows={3} value={annual} disabled={busy || saving} onChange={(event) => setAnnual(event.target.value)} placeholder="一行一个" /></label>
+    <label>本季度重点<textarea rows={3} value={quarterly} disabled={busy || saving} onChange={(event) => setQuarterly(event.target.value)} placeholder="一行一个" /></label>
+    <div className="goals-editor-actions"><button className="connection-action" disabled={busy || saving} onClick={() => void save()}>{saving ? "正在保存…" : "保存目标"}</button></div>
+  </div>;
+}
+
+function GoalCard({ title, items, empty, onEdit }: { title: string; items: string[]; empty: string; onEdit?: () => void }) {
+  return <article className="range-card">
+    <h3>{title}</h3>
+    {items.length ? <ul className="range-list">{items.map((item) => <li key={item}><strong>{item}</strong></li>)}</ul>
+      : <p className="range-empty">{empty}{onEdit && <button type="button" onClick={onEdit}>现在写下</button>}</p>}
+  </article>;
+}
+
+function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanings, goals, assistant, chatting, assistantOpen, assistantDeciding, setAssistantOpen, sendAssistantMessage, decideAssistantActions, undoAssistantAction, openAssistantSettings, openReviewLog, toggleTask, openTaskOn, openEdit, refresh, notify }: { events: Event[]; tasks: Task[]; allTasks: Task[]; deals: Deal[]; contents: ContentItem[]; workouts: Workout[]; cleanings: CleaningMark[]; goals: Goals; assistant: AssistantState; chatting: boolean; assistantOpen: boolean; assistantDeciding: string | null; setAssistantOpen: (open: boolean) => void; sendAssistantMessage: (message: string) => Promise<void>; decideAssistantActions: (replyId: string, decision: "confirm" | "cancel") => Promise<void>; undoAssistantAction: (replyId: string, operationId: string) => Promise<void>; openAssistantSettings: () => void; openReviewLog: () => void; toggleTask: (task: Task) => void; openTaskOn: (day: Date) => void; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const frame = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(frame); }, []);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -941,14 +977,8 @@ function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanin
     )}
 
     <div className="range-row secondary-goals">
-      <article className="range-card"><h3>年度计划</h3><ul className="range-list">
-        <li><strong>不上班，收入破百万</strong></li>
-        <li><strong>三平台大号合计 10 万粉</strong><small>小红书 + 视频号 + 抖音</small></li>
-      </ul></article>
-      <article className="range-card"><h3>本季度重点 · Q3</h3><ul className="range-list">
-          <li><strong>5 个 AI 系统逐步落地</strong><small>达人评估 / 排班 / 素材管理 / 数据抓取 / 投放助手</small></li>
-          <li><strong>5 篇千赞爆款，≥1 篇冲万赞</strong><small>三平台合计净增粉 5000+</small></li>
-        </ul></article>
+      <GoalCard title="年度计划" items={goals.annual} empty="还没有写下的年度计划" />
+      <GoalCard title={`本季度重点 · ${currentQuarterLabel(today)}`} items={goals.quarterly} empty="还没有写下的季度重点" onEdit={openAssistantSettings} />
     </div>
 
     <header className="month-head">
@@ -1939,14 +1969,14 @@ function ContentView({ contents, deals, refresh, openComposer, notify }: { conte
   </section>;
 }
 
-function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; settings: WorkspaceSettings; saveModules: (modules: ModuleId[], withDemo: boolean, ai: null) => Promise<void>; openSetup: () => void; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; settings: WorkspaceSettings; saveModules: (modules: ModuleId[], goals?: Goals, withDemo?: boolean, ai?: null) => Promise<void>; openSetup: () => void; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
   const [moduleBusy, setModuleBusy] = useState(false);
+  const enabledModules = settings.enabledModules.length ? settings.enabledModules : [...MODULES.map((module) => module.id)];
   async function toggleModule(id: ModuleId) {
     setModuleBusy(true);
     try {
-      const current = settings.enabledModules.length ? settings.enabledModules : [...MODULES.map((module) => module.id)];
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      await saveModules([...next], false, null);
+      const next = enabledModules.includes(id) ? enabledModules.filter((item) => item !== id) : [...enabledModules, id];
+      await saveModules(next, settings.goals, false, null);
       await refresh();
     } finally {
       setModuleBusy(false);
@@ -2076,11 +2106,16 @@ function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, de
     </section>
 
     <section className="panel settings-data-panel">
-      <div className="panel-heading"><h2>模块</h2><button className="connection-action" onClick={openSetup}>重新运行设置流程</button></div>
+      <div className="panel-heading"><h2>目标</h2><button className="connection-action" onClick={openSetup}>重新运行设置流程</button></div>
+      <GoalsEditor goals={settings.goals} busy={moduleBusy} onSave={(next) => saveModules(enabledModules, next, false, null)} notify={notify} />
+    </section>
+
+    <section className="panel settings-data-panel">
+      <div className="panel-heading"><h2>模块</h2></div>
       <p className="settings-footnote" style={{ padding: "0 20px 10px" }}>关掉用不到的模块，侧栏就不再显示它。今天、日历和设置常驻。</p>
       <div className="setup-modules" style={{ padding: "0 20px 18px" }}>
         {MODULES.map((module) => {
-          const on = settings.enabledModules.length === 0 || settings.enabledModules.includes(module.id);
+          const on = enabledModules.includes(module.id);
           return <label className={on ? "setup-module on" : "setup-module"} key={module.id}>
             <input type="checkbox" checked={on} disabled={moduleBusy} onChange={() => void toggleModule(module.id)} />
             <span><strong>{module.label}</strong><small>{module.blurb}</small></span>
@@ -2261,15 +2296,17 @@ function Composer({ kind, close, saved, editingTask, defaultDueDate, notify }: {
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><form className="composer" onSubmit={submit}><header><h2>{kind === "task" ? (editingTask ? "编辑任务" : "新建任务") : kind === "event" ? "安排日程" : kind === "content" ? "新建稿件" : "新建商单"}</h2><button type="button" onClick={close} aria-label="关闭">×</button></header>{kind === "task" && <><label>任务名称<input name="title" autoFocus required defaultValue={editingTask?.title ?? ""} placeholder="例如：整理商单初稿" /></label><div className="form-row"><label>项目<input name="project" defaultValue={editingTask?.project ?? "收件箱"} /></label><label>任务时长（分钟）<input type="number" name="estimatedMinutes" min="15" max="720" step="15" required defaultValue={editingTask?.estimatedMinutes ?? 30} /></label></div><div className="form-row"><label>优先级<select name="priority" defaultValue={editingTask?.priority ?? "medium"}><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label><label>任务日期<input type="date" name="dueDate" defaultValue={editingTask?.dueDate ? editingTask.dueDate.slice(0, 10) : defaultDueDate ?? ""} /></label></div><label>开始时间（可留空）<input type="time" name="scheduledTime" defaultValue={timeFieldValue(editingTask ? calendarStartForTask(editingTask) : null)} /></label></>}{kind === "event" && <><label>日程标题<input name="title" autoFocus required placeholder="例如：商单方案对齐" /></label><div className="form-row"><label>开始<input type="datetime-local" name="startAt" required defaultValue={now.toISOString().slice(0, 16)} /></label><label>结束<input type="datetime-local" name="endAt" required defaultValue={later.toISOString().slice(0, 16)} /></label></div><label>地点<input name="location" placeholder="线上会议 / 线下" /></label></>}{kind === "content" && <><label>稿件标题<input name="title" autoFocus required placeholder="例如：AI 客服实测脚本" /></label><div className="form-row"><label>类型<input name="type" placeholder="长视频脚本 / 公众号文章…" /></label><label>状态<select name="status"><option>构思中</option><option>写作中</option><option>初稿完成</option><option>待审核</option><option>待发布</option><option>已发布</option><option>已归档</option></select></label></div><div className="form-row"><label>字数<input type="number" name="wordCount" min="0" step="50" defaultValue="0" /></label><label>待补点<input type="number" name="pendingCount" min="0" step="1" defaultValue="0" /></label></div><label>关联商单<input name="linkedDeal" placeholder="留空表示不关联" /></label></>}{kind === "deal" && <><label>商单名称<input name="title" autoFocus required placeholder="例如：新品公众号合作" /></label><fieldset className="deal-category-field"><legend>商单类别</legend><div className="deal-category-options">{DEAL_CATEGORY_OPTIONS.map((category) => <label key={category}><input type="checkbox" name="categories" value={category} /><span>{category}</span></label>)}</div></fieldset><div className="form-row"><label>状态<select name="stage"><option value="lead">未开始</option><option value="execution">进行中</option><option value="delivery">已完成</option><option value="paid">已结算</option></select></label><label>归属月份<input type="month" name="month" defaultValue={thisMonth} /></label></div><div className="form-row"><label>执行价格<input type="number" name="price" min="0" step="1" inputMode="decimal" /></label><label>打款金额<input type="number" name="paidAmount" min="0" step="0.01" inputMode="decimal" /></label></div><div className="form-row"><label>接单日期<input type="date" name="receivedAt" defaultValue={today} /></label><label>发布日期<input type="date" name="publishedAt" /></label></div></>}<footer><span>按 Esc 关闭</span>{kind === "task" && editingTask && <button type="button" className="danger-button" disabled={deleting} onClick={() => void removeTask()}>{deleting ? "正在删除…" : "删除任务"}</button>}<button className="primary-button" disabled={saving}>{saving ? "正在保存…" : editingTask ? "保存修改" : "收入工作台"}</button></footer></form></div>;
 }
 
-function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<void> }) {
+function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], goals: Goals, withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<void> }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<ModuleId[]>([...MODULES.map((module) => module.id)]);
   const [withDemo, setWithDemo] = useState(true);
+  const [annual, setAnnual] = useState("");
+  const [quarterly, setQuarterly] = useState("");
   const [baseUrl, setBaseUrl] = useState(assistant.baseUrl);
   const [model, setModel] = useState(assistant.model);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
-  const steps = ["欢迎", "选择模块", "智能助理", "开始使用"];
+  const steps = ["欢迎", "选择模块", "写下目标", "智能助理", "开始使用"];
 
   function toggle(id: ModuleId) {
     setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -2277,7 +2314,10 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
   async function submit() {
     setSaving(true);
     try {
-      await onFinish(picked, withDemo, apiKey.trim() ? { baseUrl, model, apiKey } : null);
+      await onFinish(picked, {
+        annual: annual.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
+        quarterly: quarterly.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
+      }, withDemo, apiKey.trim() ? { baseUrl, model, apiKey } : null);
     } finally {
       setSaving(false);
     }
@@ -2310,6 +2350,12 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
     </div>}
 
     {step === 2 && <div className="setup-body">
+      <p className="setup-hint">用一行一个，写下你今年和本季度想推进的事。留空也没关系，之后随时能在设置里补。</p>
+      <label>年度计划<textarea rows={3} value={annual} onChange={(event) => setAnnual(event.target.value)} placeholder={"例如：把内容分发做到三个平台"} /></label>
+      <label>本季度重点<textarea rows={3} value={quarterly} onChange={(event) => setQuarterly(event.target.value)} placeholder={"例如：完成 5 篇长视频"} /></label>
+    </div>}
+
+    {step === 3 && <div className="setup-body">
       <p className="setup-hint">这一步可以完全跳过，之后在设置页里填也一样。</p>
       <label>API 地址<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://.../v4" autoComplete="off" /></label>
       <label>对话模型<input value={model} onChange={(event) => setModel(event.target.value)} placeholder="glm-5.3-flash" autoComplete="off" /></label>
@@ -2317,7 +2363,7 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
       <p className="settings-footnote">Key 只写入本机数据库，页面读取配置时不会把它回传给浏览器。</p>
     </div>}
 
-    {step === 3 && <div className="setup-body">
+    {step === 4 && <div className="setup-body">
       <p className="setup-hint">你可以从空白开始，也可以先载入一套虚构的演示数据看看每个视图用起来是什么样子。</p>
       <label className={withDemo ? "setup-choice on" : "setup-choice"}>
         <input type="radio" name="setupdata" checked={withDemo} onChange={() => setWithDemo(true)} />

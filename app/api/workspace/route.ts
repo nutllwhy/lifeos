@@ -2,8 +2,9 @@ import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { ensureDatabase } from "../../../db/runtime";
 import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, cleaningMarks, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts, workspaceSettings } from "../../../db/schema";
-import { buildDemoRows } from "../../../lib/demo-data";
+import { buildDemoRows, demoGoals } from "../../../lib/demo-data";
 import { normalizeModules, type ModuleId } from "../../../lib/modules";
+import { parseGoals, type Goals } from "../../../lib/goals";
 import { DEAL_CATEGORY_OPTIONS, DEAL_STAGES, normalizeDealCategories, normalizeDealStage, toDealView, type DealStage } from "../../../lib/deals";
 import { findRetryableExpenseRequest, generateReview, hasExplicitMutationIntent, inferEventDeletionAction, inferPersonalProductAction, isAssistantRetryRequest, isExpenseCaptureRequest, runAssistantConversation, runExpenseCapture, type AssistantAction, type AssistantMemoryWrite, type ConversationContext, type ReviewContext } from "../../../lib/personal-assistant";
 import { expenseAmountToCents, expenseDateTime, normalizeExpenseCategory } from "../../../lib/expenses";
@@ -827,9 +828,13 @@ async function readWorkspaceSettings() {
   const [row] = await db.select().from(workspaceSettings).where(eq(workspaceSettings.id, "workspace")).limit(1);
   if (!row) {
     await db.insert(workspaceSettings).values({ id: "workspace", enabledModules: "[]" }).onConflictDoNothing();
-    return { enabledModules: [] as ModuleId[], onboardedAt: null as string | null };
+    return { enabledModules: [] as ModuleId[], onboardedAt: null as string | null, goals: parseGoals(null) };
   }
-  return { enabledModules: normalizeModules(JSON.parse(row.enabledModules) as unknown), onboardedAt: row.onboardedAt };
+  return {
+    enabledModules: normalizeModules(JSON.parse(row.enabledModules) as unknown),
+    onboardedAt: row.onboardedAt,
+    goals: parseGoals(row.goals),
+  };
 }
 
 // Demo rows exist to show what a filled-in view looks like, so only the modules
@@ -839,6 +844,10 @@ async function loadDemoData(enabled: readonly ModuleId[]) {
   const rows = buildDemoRows();
   const now = new Date().toISOString();
   const on = (id: ModuleId) => enabled.length === 0 || enabled.includes(id);
+  const [existingSettings] = await db.select().from(workspaceSettings).where(eq(workspaceSettings.id, "workspace")).limit(1);
+  if (existingSettings && parseGoals(existingSettings.goals).annual.length === 0 && parseGoals(existingSettings.goals).quarterly.length === 0) {
+    await db.update(workspaceSettings).set({ goals: JSON.stringify(demoGoals), updatedAt: now }).where(eq(workspaceSettings.id, "workspace"));
+  }
   await db.insert(tasks).values(rows.tasks.map((row) => ({ ...row, updatedAt: now }))).onConflictDoNothing();
   await db.insert(events).values(rows.events).onConflictDoNothing();
   if (on("deals")) await db.insert(deals).values(rows.deals.map((row) => ({ ...row, updatedAt: now }))).onConflictDoNothing();
@@ -940,7 +949,7 @@ export async function GET() {
         })),
       },
       meta: { firstRun, demoInstalled },
-      settings: { enabledModules: settings.enabledModules, onboarded: Boolean(settings.onboardedAt) },
+      settings: { enabledModules: settings.enabledModules, onboarded: Boolean(settings.onboardedAt), goals: settings.goals },
     });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "加载失败" }, { status: 500 });
@@ -1313,16 +1322,19 @@ export async function POST(request: Request) {
       const now = new Date().toISOString();
       const [existing] = await db.select().from(workspaceSettings).where(eq(workspaceSettings.id, "workspace")).limit(1);
       const onboardedAt = payload.onboarded === false ? null : (existing?.onboardedAt ?? now);
+      const goals = payload.goals === undefined ? parseGoals(existing?.goals) : parseGoals(payload.goals);
+      const enabledModulesPayload = JSON.stringify(enabledModules);
       await db.insert(workspaceSettings).values({
         id: "workspace",
-        enabledModules: JSON.stringify(enabledModules),
+        enabledModules: enabledModulesPayload,
+        goals: JSON.stringify(goals),
         onboardedAt,
         updatedAt: now,
       }).onConflictDoUpdate({
         target: workspaceSettings.id,
-        set: { enabledModules: JSON.stringify(enabledModules), onboardedAt, updatedAt: now },
+        set: { enabledModules: enabledModulesPayload, goals: JSON.stringify(goals), onboardedAt, updatedAt: now },
       });
-      return Response.json({ ok: true, enabledModules, onboarded: Boolean(onboardedAt) });
+      return Response.json({ ok: true, enabledModules, goals, onboarded: Boolean(onboardedAt) });
     }
 
     if (kind === "demo_load") {
