@@ -46,14 +46,38 @@ npm run dev
 
 ## 桌面端
 
-从源码运行：
+### 安装成品（推荐）
+
+从 Release 页面下载对应文件：
+
+| 文件 | 适用 |
+| --- | --- |
+| `LifeOS-0.1.0-arm64.dmg` | Apple Silicon（M1 及更新机型） |
+| `LifeOS-0.1.0-x64.dmg` | Intel Mac |
+| `LifeOS-Setup-0.1.0.exe` | Windows 10 / 11 64 位安装版 |
+| `LifeOS-Portable-0.1.0.exe` | Windows 免安装版 |
+
+macOS 打开 DMG 后，**请先把 LifeOS 拖进旁边的「应用程序」文件夹，再从「应用程序」里启动**。应用自带本地运行时，需要在自己的目录里写临时文件；直接在只读的 DMG 磁盘里打开会启动失败。
+
+安装包尚未做代码签名与公证，首次启动会被系统拦下：
+
+- macOS：右键点击 LifeOS →「打开」→ 在弹窗里再点一次「打开」；或在「系统设置 → 隐私与安全性」中点「仍要打开」。
+- Windows：SmartScreen 提示「未知发布者」时，点「更多信息」→「仍要运行」。
+
+### 从源码运行
 
 ```bash
+npm install
 npm run desktop        # 构建并启动 Electron
-npm run desktop:pack   # 生成可直接打开的 .app（macOS arm64）
+npm run dist:mac       # 生成 macOS dmg + zip（arm64 与 x64）
+npm run dist:win       # 生成 Windows 安装包
 ```
 
-> 预编译的 macOS / Windows 安装包正在准备中，会在 Release 页面提供。当前从源码运行需要本机已安装 Node.js。
+打包需要下载 Electron 发行包。如果网络拉取超时，改用镜像：
+
+```bash
+ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm run dist:mac
+```
 
 ## 技术栈
 

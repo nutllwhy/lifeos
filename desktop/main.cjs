@@ -198,6 +198,21 @@ function missingRuntimeMessage() {
   return `缺少本地运行文件：${wranglerCliPath()}`;
 }
 
+// Wrangler writes a .wrangler directory next to its config file, so running the
+// app straight from a mounted DMG fails with an opaque timeout unless the user is
+// told to install it first.
+function assertRuntimeWritable(serverRoot) {
+  const writableTarget = path.join(serverRoot, "dist", "server");
+  try {
+    fs.accessSync(writableTarget, fs.constants.W_OK);
+  } catch {
+    throw new Error(
+      `${APP_NAME}正在从只读磁盘运行，本地服务无法写入临时文件。\n` +
+      `请把 ${APP_NAME}.app 拖到「应用程序」文件夹，再重新打开。`,
+    );
+  }
+}
+
 // Wrangler's CLI does not initialise under ELECTRON_RUN_AS_NODE, so the shell
 // ships a real Node binary and prefers it over anything on the host.
 function nodeCandidates() {
@@ -268,6 +283,7 @@ async function ensureServer() {
   if (!fs.existsSync(wranglerCliPath())) throw new Error(missingRuntimeMessage());
 
   const serverRoot = resolveServerRuntimeRoot();
+  assertRuntimeWritable(serverRoot);
   serverPort = await findFreePort();
   const logDir = path.join(app.getPath("userData"), "runtime-logs");
   fs.mkdirSync(logDir, { recursive: true });
