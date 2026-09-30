@@ -316,29 +316,28 @@ export function Workspace() {
     }
   }
 
-  async function finishSetup(modules: ModuleId[], goals?: Goals, withDemo = false, ai: { baseUrl: string; model: string; apiKey: string } | null = null) {
-    try {
+  async function finishSetup(modules: ModuleId[], goals?: Goals, withDemo = false, ai: { baseUrl: string; model: string; apiKey: string } | null = null): Promise<string | null> {
+    const post = async (body: Record<string, unknown>) => {
       const response = await fetch("/api/workspace", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: "workspace_settings", enabledModules: modules, goals, onboarded: true }),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
       });
       const result = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(result.error || "设置保存失败");
-      if (ai?.apiKey.trim()) {
-        await fetch("/api/workspace", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind: "assistant_config", baseUrl: ai.baseUrl, model: ai.model, apiKey: ai.apiKey }),
-        });
-      }
-      if (withDemo) {
-        await fetch("/api/workspace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "demo_load" }) });
-      }
+      if (!response.ok) throw new Error(result.error || "本地服务没有响应");
+    };
+    try {
+      await post({ kind: "workspace_settings", enabledModules: modules, goals, onboarded: true });
+      if (ai?.apiKey.trim()) await post({ kind: "assistant_config", baseUrl: ai.baseUrl, model: ai.model, apiKey: ai.apiKey });
+      if (withDemo) await post({ kind: "demo_load" });
       await load();
       setNotice(withDemo ? "设置完成，已载入演示数据" : "设置完成，随时可以在设置页调整模块");
+      return null;
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "设置没有保存上");
+      const message = error instanceof Error ? error.message : "设置没有保存上";
+      setNotice(message);
+      return message;
     }
   }
 
@@ -487,10 +486,7 @@ export function Workspace() {
           <SetupWizard
             assistant={data.assistant}
             onClose={() => setSetupOpen(false)}
-            onFinish={async (modules, goals, withDemo, ai) => {
-              setSetupOpen(false);
-              await finishSetup(modules, goals, withDemo, ai);
-            }}
+            onFinish={(modules, goals, withDemo, ai) => finishSetup(modules, goals, withDemo, ai)}
           />
         )}
 
@@ -747,7 +743,7 @@ function CalendarResizeBubble({ visual }: { visual: { minutes: number; x: number
   return <div className="calendar-resize-bubble" style={{ left: visual.x + 12, top: visual.y - 12 }}>{durationText(visual.minutes)}</div>;
 }
 
-function GoalsEditor({ goals, busy, onSave, notify }: { goals: Goals; busy: boolean; onSave: (goals: Goals) => Promise<void>; notify: (message: string) => void }) {
+function GoalsEditor({ goals, busy, onSave, notify }: { goals: Goals; busy: boolean; onSave: (goals: Goals) => Promise<string | null>; notify: (message: string) => void }) {
   const [annual, setAnnual] = useState(goals.annual.join("\n"));
   const [quarterly, setQuarterly] = useState(goals.quarterly.join("\n"));
   const [saving, setSaving] = useState(false);
@@ -1969,7 +1965,7 @@ function ContentView({ contents, deals, refresh, openComposer, notify }: { conte
   </section>;
 }
 
-function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; settings: WorkspaceSettings; saveModules: (modules: ModuleId[], goals?: Goals, withDemo?: boolean, ai?: null) => Promise<void>; openSetup: () => void; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, demoBusy, onDemo, refresh, notify }: { assistant: AssistantState; meta: WorkspaceData["meta"]; settings: WorkspaceSettings; saveModules: (modules: ModuleId[], goals?: Goals, withDemo?: boolean, ai?: null) => Promise<string | null>; openSetup: () => void; demoBusy: boolean; onDemo: (kind: "demo_load" | "demo_clear") => Promise<void>; refresh: () => Promise<void>; notify: (message: string) => void }) {
   const [moduleBusy, setModuleBusy] = useState(false);
   const enabledModules = settings.enabledModules.length ? settings.enabledModules : [...MODULES.map((module) => module.id)];
   async function toggleModule(id: ModuleId) {
@@ -2299,7 +2295,7 @@ function SetupOption({ checked, kind, name, title, blurb, onToggle }: { checked:
   </label>;
 }
 
-function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], goals: Goals, withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<void> }) {
+function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], goals: Goals, withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<string | null | undefined> }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<ModuleId[]>([...MODULES.map((module) => module.id)]);
   const [withDemo, setWithDemo] = useState(true);
@@ -2309,6 +2305,7 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
   const [model, setModel] = useState(assistant.model);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const steps = ["欢迎", "选择模块", "写下目标", "智能助理", "开始使用"];
   const last = steps.length - 1;
 
@@ -2317,11 +2314,15 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
   }
   async function submit() {
     setSaving(true);
+    setFailure(null);
     try {
-      await onFinish(picked, {
+      const error = await onFinish(picked, {
         annual: annual.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
         quarterly: quarterly.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6),
       }, withDemo, apiKey.trim() ? { baseUrl, model, apiKey } : null);
+      if (error) setFailure(error);
+    } catch (reason) {
+      setFailure(reason instanceof Error ? reason.message : "本地服务没有响应");
     } finally {
       setSaving(false);
     }
@@ -2382,6 +2383,8 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
       </div>
       <p className="settings-footnote">已选模块：{picked.length ? picked.map((id) => MODULES.find((module) => module.id === id)?.label).join("、") : "仅核心视图"}</p>
     </div>}
+
+    {failure && <p className="setup-error">保存失败：{failure}。你的选择不会丢，可以直接再试一次。</p>}
 
     <footer className="setup-footer">
       {step > 0 && step < last ? <button type="button" className="setup-ghost" onClick={onClose}>稍后再说</button> : <span />}

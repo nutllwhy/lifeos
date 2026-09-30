@@ -302,6 +302,7 @@ button { color:inherit; }
 .setup-option-text strong{font-size:13.5px;color:#16281f}
 .setup-option-text small{font-size:12px;color:#6b7770;line-height:1.55}
 
+.setup-error{margin:0;padding:10px 12px;border-radius:10px;background:#fdf3f1;border:1px solid #e8c4bd;color:#a8402f;font-size:12.5px;line-height:1.6}
 .setup-footer{display:flex;align-items:center;gap:10px;border-top:1px solid #eae5da;padding-top:14px;margin-top:2px}
 .setup-footer .setup-ghost{margin-right:auto}
 .setup-ghost{border:1px solid #ddd8cd;background:transparent;border-radius:10px;padding:0 14px;height:38px;font-size:13px;color:#5d6b62;cursor:pointer}
