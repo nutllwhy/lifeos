@@ -2,25 +2,29 @@
 // exists so a fresh install can show what each view looks like when used.
 import { DEAL_CATEGORY_OPTIONS } from "./deals";
 
-function shiftDay(offset: number, hour = 9, minute = 0) {
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  date.setDate(date.getDate() + offset);
-  return date;
+// The interface renders every timestamp in Asia/Shanghai, and workerd does not
+// honour a host TZ, so demo times are built from Shanghai wall clock directly
+// instead of relying on whatever zone the runtime happens to run in.
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function shanghaiNow(now = new Date()) {
+  return new Date(now.getTime() + SHANGHAI_OFFSET_MS);
 }
 
 function at(offset: number, hour = 9, minute = 0) {
-  return shiftDay(offset, hour, minute).toISOString();
+  const base = shanghaiNow();
+  const wall = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + offset, hour, minute);
+  return new Date(wall - SHANGHAI_OFFSET_MS).toISOString();
 }
 
 function on(offset: number) {
-  const date = shiftDay(offset, 12);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const date = shanghaiNow();
+  const shifted = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + offset));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
 }
 
 function monthKey(offset: number) {
-  const date = shiftDay(offset, 12);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return on(offset).slice(0, 7);
 }
 
 const DEMO = "demo";
@@ -172,7 +176,7 @@ export function buildDemoRows() {
       id: demoId("event"),
       title: item.title,
       startAt: at(item.startOffset, item.startHour, item.startMinute),
-      endAt: new Date(shiftDay(item.startOffset, item.startHour, item.startMinute).getTime() + item.durationMinutes * 60000).toISOString(),
+      endAt: new Date(new Date(at(item.startOffset, item.startHour, item.startMinute)).getTime() + item.durationMinutes * 60000).toISOString(),
       category: item.category,
       location: item.location,
       source: DEMO,
