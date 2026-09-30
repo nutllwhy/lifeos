@@ -51,11 +51,6 @@ const statements = [
     notes TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'workspace',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  `CREATE TABLE IF NOT EXISTS cleaning_marks (
-    id TEXT PRIMARY KEY, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
-    kind TEXT NOT NULL DEFAULT 'missed', start_minutes INTEGER, end_minutes INTEGER,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
   `CREATE TABLE IF NOT EXISTS platform_promotions (
     id TEXT PRIMARY KEY, platform TEXT NOT NULL, topic TEXT NOT NULL,
     start_date TEXT, end_date TEXT, rules TEXT NOT NULL DEFAULT '',
@@ -111,7 +106,6 @@ const statements = [
   "CREATE INDEX IF NOT EXISTS idx_content_items_linked_deal ON content_items(linked_deal)",
   "CREATE INDEX IF NOT EXISTS idx_ingredients_expires_at ON ingredients(expires_at)",
   "CREATE INDEX IF NOT EXISTS idx_workouts_started_at ON workouts(started_at)",
-  "CREATE INDEX IF NOT EXISTS idx_cleaning_marks_date ON cleaning_marks(date)",
   "CREATE INDEX IF NOT EXISTS idx_platform_promotions_platform ON platform_promotions(platform)",
   "CREATE INDEX IF NOT EXISTS idx_personal_products_stage ON personal_products(stage)",
   "CREATE INDEX IF NOT EXISTS idx_daily_reviews_date ON daily_reviews(review_date)",

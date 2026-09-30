@@ -115,16 +115,6 @@ export const workouts = sqliteTable("workouts", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("idx_workouts_started_at").on(table.startedAt)]);
 
-export const cleaningMarks = sqliteTable("cleaning_marks", {
-  id: text("id").primaryKey(),
-  date: text("date").notNull(),
-  note: text("note").notNull().default(""),
-  kind: text("kind").notNull().default("missed"),
-  startMinutes: integer("start_minutes"),
-  endMinutes: integer("end_minutes"),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [index("idx_cleaning_marks_date").on(table.date)]);
-
 export const platformPromotions = sqliteTable("platform_promotions", {
   id: text("id").primaryKey(),
   platform: text("platform").notNull(),

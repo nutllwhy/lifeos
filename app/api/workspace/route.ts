@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { ensureDatabase } from "../../../db/runtime";
-import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, cleaningMarks, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts, workspaceSettings } from "../../../db/schema";
+import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts, workspaceSettings } from "../../../db/schema";
 import { buildDemoRows, demoGoals } from "../../../lib/demo-data";
 import { normalizeModules, type ModuleId } from "../../../lib/modules";
 import { parseGoals, type Goals } from "../../../lib/goals";
@@ -856,7 +856,6 @@ async function loadDemoData(enabled: readonly ModuleId[]) {
   if (on("health")) {
     await db.insert(ingredients).values(rows.ingredients).onConflictDoNothing();
     await db.insert(workouts).values(rows.workouts).onConflictDoNothing();
-    await db.insert(cleaningMarks).values(rows.cleanings).onConflictDoNothing();
   }
   if (on("platforms")) await db.insert(platformPromotions).values(rows.promotions).onConflictDoNothing();
   if (on("products")) await db.insert(personalProducts).values(rows.products).onConflictDoNothing();
@@ -872,7 +871,6 @@ async function clearDemoData() {
   await db.delete(contentItems).where(like(contentItems.id, "demo-%"));
   await db.delete(ingredients).where(like(ingredients.id, "demo-%"));
   await db.delete(workouts).where(like(workouts.id, "demo-%"));
-  await db.delete(cleaningMarks).where(like(cleaningMarks.id, "demo-%"));
   await db.delete(platformPromotions).where(like(platformPromotions.id, "demo-%"));
   await db.delete(personalProducts).where(like(personalProducts.id, "demo-%"));
   await db.delete(dailyReviews).where(like(dailyReviews.id, "demo-%"));
@@ -885,7 +883,7 @@ export async function GET() {
     await finalizeExpiredFocusSessions();
     await backfillTaskSchedules();
     const db = getDb();
-    const [taskRows, eventRows, focusRows, expenseRows, dealRows, contentRows, ingredientRows, workoutRows, cleaningRows, promotionRows, productRows, assistantRows, reviewRows, messageRows, memoryRows] = await Promise.all([
+    const [taskRows, eventRows, focusRows, expenseRows, dealRows, contentRows, ingredientRows, workoutRows, promotionRows, productRows, assistantRows, reviewRows, messageRows, memoryRows] = await Promise.all([
       db.select().from(tasks).orderBy(asc(tasks.status), asc(tasks.dueDate), desc(tasks.createdAt)),
       db.select().from(events).orderBy(asc(events.startAt)),
       db.select().from(focusSessions).orderBy(desc(focusSessions.startedAt)).limit(500),
@@ -894,7 +892,6 @@ export async function GET() {
       db.select().from(contentItems).orderBy(desc(contentItems.modifiedAt)),
       db.select().from(ingredients).orderBy(asc(ingredients.expiresAt), asc(ingredients.category), asc(ingredients.name)),
       db.select().from(workouts).orderBy(desc(workouts.startedAt)),
-      db.select().from(cleaningMarks).orderBy(asc(cleaningMarks.date)),
       db.select().from(platformPromotions).orderBy(desc(platformPromotions.createdAt)),
       db.select().from(personalProducts).orderBy(asc(personalProducts.stage), desc(personalProducts.updatedAt)),
       db.select().from(assistantSettings).where(eq(assistantSettings.id, "personal-assistant")).limit(1),
@@ -916,7 +913,6 @@ export async function GET() {
       contents: contentRows,
       ingredients: ingredientRows,
       workouts: workoutRows,
-      cleanings: cleaningRows,
       promotions: promotionRows,
       products: productRows,
       assistant: {
@@ -1391,26 +1387,6 @@ export async function POST(request: Request) {
       return Response.json({ item: created }, { status: 201 });
     }
 
-    if (kind === "cleaning") {
-      const date = String(payload.date ?? "").trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return Response.json({ error: "日期格式不正确" }, { status: 400 });
-      const minutesOfDay = (value: unknown) => {
-        const minutes = Number(value);
-        return Number.isFinite(minutes) && minutes >= 0 && minutes <= 24 * 60 ? Math.round(minutes) : null;
-      };
-      const kind = payload.extra === true ? "extra" : (payload.startMinutes !== undefined || payload.endMinutes !== undefined ? "hours" : "missed");
-      const startMinutes = kind === "hours" ? minutesOfDay(payload.startMinutes) : null;
-      const endMinutes = kind === "hours" ? minutesOfDay(payload.endMinutes) : null;
-      if (kind === "hours" && (startMinutes === null || endMinutes === null || endMinutes - startMinutes < 30)) {
-        return Response.json({ error: "保洁时间需要至少 30 分钟" }, { status: 400 });
-      }
-      await db.delete(cleaningMarks).where(eq(cleaningMarks.date, date));
-      const [created] = await db.insert(cleaningMarks).values({
-        id: crypto.randomUUID(), date, note: String(payload.note ?? "").trim(),
-        kind, startMinutes, endMinutes,
-      }).returning();
-      return Response.json({ item: created }, { status: 201 });
-    }
 
     if (kind === "platform_promotion") {
       const platform = String(payload.platform ?? "").trim();
@@ -1568,50 +1544,6 @@ export async function PATCH(request: Request) {
       if (!updated) return Response.json({ error: "没有找到这条训练记录" }, { status: 404 });
       return Response.json({ ok: true, item: updated });
     }
-    if (payload.kind === "cleaning" && payload.startMinutes !== undefined && payload.endMinutes !== undefined) {
-      // 保洁块拖动：虚拟块的 id 形如 cleaning-YYYY-MM-DD，落库为该日期的自定义时间。
-      const dateMatch = String(payload.id ?? "").match(/^cleaning-(\d{4}-\d{2}-\d{2})$/);
-      if (dateMatch) {
-        const minutesOfDay = (value: unknown) => {
-          const minutes = Number(value);
-          return Number.isFinite(minutes) && minutes >= 0 && minutes <= 24 * 60 ? Math.round(minutes) : null;
-        };
-        const startMinutes = minutesOfDay(payload.startMinutes);
-        const endMinutes = minutesOfDay(payload.endMinutes);
-        if (startMinutes === null || endMinutes === null || endMinutes - startMinutes < 30) {
-          return Response.json({ error: "保洁时间需要至少 30 分钟" }, { status: 400 });
-        }
-        const targetDate = dateMatch[1];
-        // 跨天移动：源日期标记为 moved，目标日期写入自定义时间；同日移动只更新 hours。
-        const fromDate = typeof payload.fromDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(payload.fromDate) && payload.fromDate !== targetDate ? payload.fromDate : null;
-        if (fromDate) {
-          await db.delete(cleaningMarks).where(and(eq(cleaningMarks.date, fromDate), inArray(cleaningMarks.kind, ["hours", "moved"])));
-          await db.insert(cleaningMarks).values({ id: crypto.randomUUID(), date: fromDate, note: "", kind: "moved" });
-        }
-        await db.delete(cleaningMarks).where(and(eq(cleaningMarks.date, targetDate), inArray(cleaningMarks.kind, ["hours", "moved"])));
-        const [created] = await db.insert(cleaningMarks).values({
-          id: crypto.randomUUID(), date: targetDate, note: "",
-          kind: "hours", startMinutes, endMinutes,
-        }).returning();
-        return Response.json({ ok: true, item: created });
-      }
-      const minutesOfDay = (value: unknown) => {
-        const minutes = Number(value);
-        return Number.isFinite(minutes) && minutes >= 0 && minutes <= 24 * 60 ? Math.round(minutes) : null;
-      };
-      const startMinutes = minutesOfDay(payload.startMinutes);
-      const endMinutes = minutesOfDay(payload.endMinutes);
-      if (startMinutes === null || endMinutes === null || endMinutes - startMinutes < 30) {
-        return Response.json({ error: "保洁时间需要至少 30 分钟" }, { status: 400 });
-      }
-      const [existing] = await db.select().from(cleaningMarks).where(eq(cleaningMarks.id, payload.id)).limit(1);
-      if (!existing) return Response.json({ error: "没有找到这条保洁记录" }, { status: 404 });
-      const [updated] = await db.update(cleaningMarks)
-        .set({ kind: "hours", startMinutes, endMinutes })
-        .where(eq(cleaningMarks.id, payload.id))
-        .returning();
-      return Response.json({ ok: true, item: updated });
-    }
     if (payload.kind === "personal_product") {
       const set: { stage?: string; note?: string; updatedAt: string } = { updatedAt: new Date().toISOString() };
       if (payload.stage) {
@@ -1724,10 +1656,6 @@ export async function DELETE(request: Request) {
     }
     if (payload.kind === "workout") {
       await retryDatabaseWrite("delete-workout", () => db.delete(workouts).where(eq(workouts.id, payload.id!)));
-      return Response.json({ ok: true });
-    }
-    if (payload.kind === "cleaning") {
-      await retryDatabaseWrite("delete-cleaning", () => db.delete(cleaningMarks).where(eq(cleaningMarks.id, payload.id!)));
       return Response.json({ ok: true });
     }
     if (payload.kind === "event") {

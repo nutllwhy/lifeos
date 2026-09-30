@@ -164,7 +164,7 @@ test("builds the finished personal workspace product", async () => {
   assert.match(desktopPreload, /notifyFocusComplete/);
   assert.ok(migrationFiles.length >= 1, "expected at least one baseline migration");
   const migration = migrationFiles.join("\n");
-  for (const table of ["tasks", "events", "focus_sessions", "expense_entries", "deals", "content_items", "ingredients", "workouts", "cleaning_marks", "platform_promotions", "personal_products", "assistant_settings", "daily_reviews", "assistant_messages", "assistant_memories", "assistant_operations"]) {
+  for (const table of ["tasks", "events", "focus_sessions", "expense_entries", "deals", "content_items", "ingredients", "workouts", "platform_promotions", "personal_products", "assistant_settings", "daily_reviews", "assistant_messages", "assistant_memories", "assistant_operations"]) {
     assert.match(migration, new RegExp("CREATE TABLE `" + table + "`"));
   }
   assert.match(migration, /idx_events_start_at/);

@@ -101,12 +101,6 @@ export const demoWorkouts = [
   { type: "跑步", offset: -7, hour: 7, durationMinutes: 35, intensity: "中等", notes: "6 km" },
 ];
 
-export const demoCleanings = [
-  { offset: -1, kind: "done", note: "厨房台面与水槽" },
-  { offset: -2, kind: "missed", note: "" },
-  { offset: 0, kind: "hours", note: "全屋吸尘", startMinutes: 600, endMinutes: 675 },
-];
-
 export const demoPromotions = [
   { platform: "视频号", topic: "AI 工具实测月", startOffset: -5, endOffset: 9, rules: "带话题发布满 4 条可进流量池", note: "本周先发 2 条", status: "active" },
   { platform: "公众号", topic: "读书季征稿", startOffset: -12, endOffset: 3, rules: "原创长文，阅读量前 20 给推荐位", note: "投稿已提交", status: "active" },
@@ -235,14 +229,6 @@ export function buildDemoRows() {
       intensity: item.intensity,
       notes: item.notes,
       source: DEMO,
-    })),
-    cleanings: demoCleanings.map((item) => ({
-      id: demoId("cleaning"),
-      date: on(item.offset),
-      note: item.note,
-      kind: item.kind,
-      startMinutes: item.startMinutes ?? null,
-      endMinutes: item.endMinutes ?? null,
     })),
     promotions: demoPromotions.map((item) => ({
       id: demoId("promotion"),

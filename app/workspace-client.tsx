@@ -34,7 +34,6 @@ type Deal = { id: string; brand: string; campaign: string; stage: string; nextAc
 type ContentItem = { id: string; title: string; kind: string; status: string; wordCount: number; pendingCount: number; linkedDeal: string | null; modifiedAt: string; createdAt: string };
 type Ingredient = { id: string; name: string; amount: string; category: string; storage: string; expiresAt: string | null; note: string };
 type Workout = { id: string; type: string; startedAt: string; durationMinutes: number; intensity: string; notes: string; source: string };
-type CleaningMark = { id: string; date: string; note: string; kind: string; startMinutes: number | null; endMinutes: number | null };
 type PlatformPromotion = { id: string; platform: string; topic: string; startDate: string | null; endDate: string | null; rules: string; note: string; status: string };
 type PersonalProduct = { id: string; name: string; path: string; stage: string; note: string };
 type ReviewPeriod = "daily" | "weekly" | "monthly";
@@ -45,14 +44,13 @@ type AssistantMessage = { id: string; role: "user" | "assistant"; content: strin
 type AssistantMemory = { id: string; category: string; content: string; sourceMessageId: string | null; status: string; createdAt: string; updatedAt: string };
 type AssistantState = { configured: boolean; baseUrl: string; model: string; reviewTime: string; autoReview: boolean; lastCallAt: string; messages: AssistantMessage[]; memories: AssistantMemory[]; review: DailyReview | null; reviews: DailyReview[] };
 type WorkspaceSettings = { enabledModules: ModuleId[]; onboarded: boolean; goals: Goals };
-type WorkspaceData = { tasks: Task[]; events: Event[]; focusSessions: FocusSession[]; expenses: Expense[]; deals: Deal[]; contents: ContentItem[]; ingredients: Ingredient[]; workouts: Workout[]; cleanings: CleaningMark[]; promotions: PlatformPromotion[]; products: PersonalProduct[]; assistant: AssistantState; meta: { firstRun: boolean; demoInstalled: boolean }; settings: WorkspaceSettings };
+type WorkspaceData = { tasks: Task[]; events: Event[]; focusSessions: FocusSession[]; expenses: Expense[]; deals: Deal[]; contents: ContentItem[]; ingredients: Ingredient[]; workouts: Workout[]; promotions: PlatformPromotion[]; products: PersonalProduct[]; assistant: AssistantState; meta: { firstRun: boolean; demoInstalled: boolean }; settings: WorkspaceSettings };
 
 const AI_MODEL_OPTIONS = [
   { value: "glm-5.3-flash", label: "GLM-5.3 Flash（更快）" },
   { value: "glm-5.3", label: "GLM-5.3（更强）" },
 ] as const;
 
-const CLEANING_TIME = "10:00–12:00";
 const CALENDAR_START_HOUR = 7;
 const CALENDAR_END_HOUR = 23;
 const CALENDAR_HOUR_HEIGHT = 72;
@@ -152,7 +150,7 @@ function focusTotal(seconds: number) {
 export function Workspace() {
   const [view, setView] = useState<View>("today");
   const [data, setData] = useState<WorkspaceData>({
-    tasks: [], events: [], focusSessions: [], expenses: [], deals: [], contents: [], ingredients: [], workouts: [], cleanings: [], promotions: [], products: [],
+    tasks: [], events: [], focusSessions: [], expenses: [], deals: [], contents: [], ingredients: [], workouts: [], promotions: [], products: [],
     assistant: { configured: false, baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-5.3-flash", reviewTime: "21:30", autoReview: true, lastCallAt: "", messages: [], memories: [], review: null, reviews: [] },
     meta: { firstRun: true, demoInstalled: false },
     settings: { enabledModules: [], onboarded: true, goals: { annual: [], quarterly: [] } },
@@ -505,8 +503,8 @@ export function Workspace() {
 
         {loading ? <LoadingState /> : (
           <div className="view-stage">
-            {view === "today" && <TodayView events={data.events} tasks={openTasks} allTasks={data.tasks} deals={data.deals} contents={data.contents} workouts={data.workouts} cleanings={data.cleanings} goals={data.settings.goals} assistant={data.assistant} chatting={assistantChatting} assistantOpen={assistantOpen} assistantDeciding={assistantDeciding} setAssistantOpen={setAssistantOpen} sendAssistantMessage={sendAssistantMessage} decideAssistantActions={decideAssistantActions} undoAssistantAction={undoAssistantAction} openAssistantSettings={() => setView("connections")} openReviewLog={() => setView("review")} toggleTask={toggleTask} openTaskOn={(day) => { const pad = (n: number) => String(n).padStart(2, "0"); setComposerDue(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`); setEditingTask(null); setComposer("task"); }} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
-            {view === "calendar" && <CalendarView events={data.events} workouts={data.workouts} cleanings={data.cleanings} tasks={data.tasks} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
+            {view === "today" && <TodayView events={data.events} tasks={openTasks} allTasks={data.tasks} deals={data.deals} contents={data.contents} workouts={data.workouts} goals={data.settings.goals} assistant={data.assistant} chatting={assistantChatting} assistantOpen={assistantOpen} assistantDeciding={assistantDeciding} setAssistantOpen={setAssistantOpen} sendAssistantMessage={sendAssistantMessage} decideAssistantActions={decideAssistantActions} undoAssistantAction={undoAssistantAction} openAssistantSettings={() => setView("connections")} openReviewLog={() => setView("review")} toggleTask={toggleTask} openTaskOn={(day) => { const pad = (n: number) => String(n).padStart(2, "0"); setComposerDue(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`); setEditingTask(null); setComposer("task"); }} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
+            {view === "calendar" && <CalendarView events={data.events} workouts={data.workouts} tasks={data.tasks} openEdit={(task) => { setComposerDue(null); setEditingTask(task); setComposer("task"); }} refresh={load} notify={setNotice} />}
             {view === "deals" && <DealWorkspaceView deals={data.deals} contents={data.contents} refresh={load} openDealComposer={() => setComposer("deal")} openContentComposer={() => setComposer("content")} notify={setNotice} />}
             {view === "expenses" && <ExpensesView expenses={data.expenses} refresh={load} notify={setNotice} />}
             {view === "health" && <HealthView ingredients={data.ingredients} workouts={data.workouts} refresh={load} notify={setNotice} />}
@@ -560,7 +558,7 @@ function toDueIso(day: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T18:00:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }
 
-type CalendarDragItem = { kind: "task" | "event" | "workout" | "cleaning"; id: string; label: string };
+type CalendarDragItem = { kind: "task" | "event" | "workout"; id: string; label: string };
 type CalendarDropTarget = { dateKey: string; minuteOfDay: number | null };
 
 function useCalendarPointerDrag(onDrop: (item: CalendarDragItem, target: CalendarDropTarget) => void | Promise<void>) {
@@ -778,7 +776,7 @@ function GoalCard({ title, items, empty, onEdit }: { title: string; items: strin
   </article>;
 }
 
-function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanings, goals, assistant, chatting, assistantOpen, assistantDeciding, setAssistantOpen, sendAssistantMessage, decideAssistantActions, undoAssistantAction, openAssistantSettings, openReviewLog, toggleTask, openTaskOn, openEdit, refresh, notify }: { events: Event[]; tasks: Task[]; allTasks: Task[]; deals: Deal[]; contents: ContentItem[]; workouts: Workout[]; cleanings: CleaningMark[]; goals: Goals; assistant: AssistantState; chatting: boolean; assistantOpen: boolean; assistantDeciding: string | null; setAssistantOpen: (open: boolean) => void; sendAssistantMessage: (message: string) => Promise<void>; decideAssistantActions: (replyId: string, decision: "confirm" | "cancel") => Promise<void>; undoAssistantAction: (replyId: string, operationId: string) => Promise<void>; openAssistantSettings: () => void; openReviewLog: () => void; toggleTask: (task: Task) => void; openTaskOn: (day: Date) => void; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function TodayView({ events, tasks, allTasks, deals, contents, workouts, goals, assistant, chatting, assistantOpen, assistantDeciding, setAssistantOpen, sendAssistantMessage, decideAssistantActions, undoAssistantAction, openAssistantSettings, openReviewLog, toggleTask, openTaskOn, openEdit, refresh, notify }: { events: Event[]; tasks: Task[]; allTasks: Task[]; deals: Deal[]; contents: ContentItem[]; workouts: Workout[]; goals: Goals; assistant: AssistantState; chatting: boolean; assistantOpen: boolean; assistantDeciding: string | null; setAssistantOpen: (open: boolean) => void; sendAssistantMessage: (message: string) => Promise<void>; decideAssistantActions: (replyId: string, decision: "confirm" | "cancel") => Promise<void>; undoAssistantAction: (replyId: string, operationId: string) => Promise<void>; openAssistantSettings: () => void; openReviewLog: () => void; toggleTask: (task: Task) => void; openTaskOn: (day: Date) => void; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const frame = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(frame); }, []);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -868,45 +866,6 @@ function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanin
     }
   }
 
-  const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const isCleaningDay = (d: Date) => d.getDay() >= 1 && d.getDay() <= 5;
-  const cleaningMiss = (d: Date) => cleanings.find((mark) => mark.date === dateKey(d) && mark.kind === "missed");
-  const cleaningExtra = (d: Date) => cleanings.find((mark) => mark.date === dateKey(d) && mark.kind === "extra");
-  async function toggleCleaning(day: Date) {
-    const existing = cleaningMiss(day);
-    try {
-      if (existing) {
-        const response = await fetch("/api/workspace", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cleaning", id: existing.id }) });
-        if (!response.ok) throw new Error("取消标记失败");
-      } else {
-        const response = await fetch("/api/workspace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cleaning", date: dateKey(day) }) });
-        if (!response.ok) throw new Error("标记失败");
-      }
-      await refresh();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "操作失败");
-    }
-  }
-  async function toggleCleaningExtra(day: Date) {
-    const existing = cleaningExtra(day);
-    try {
-      if (existing) {
-        const response = await fetch("/api/workspace", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cleaning", id: existing.id }) });
-        if (!response.ok) throw new Error("取消补班失败");
-      } else {
-        const response = await fetch("/api/workspace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "cleaning", date: dateKey(day), extra: true }) });
-        if (!response.ok) throw new Error("添加补班失败");
-      }
-      await refresh();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "操作失败");
-    }
-  }
-  const monthKey = dateKey(today).slice(0, 7);
-  const cleaningMissed = cleanings.filter((mark) => mark.date.startsWith(monthKey) && mark.kind === "missed").length;
-  const cleaningExtraCount = cleanings.filter((mark) => mark.date.startsWith(monthKey) && mark.kind === "extra").length;
-  const cleaningExpected = (() => { const last = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(); let count = 0; for (let d = 1; d <= last; d++) { const wd = new Date(today.getFullYear(), today.getMonth(), d).getDay(); if (wd >= 1 && wd <= 5) count++; } return count; })();
-
   if (!mounted) return <section className="week-planner" aria-busy="true"><div className="range-row"><div className="range-card"><h3>年度计划</h3></div><div className="range-card"><h3>本季度重点</h3></div></div></section>;
 
   return <section className="week-planner">
@@ -943,17 +902,6 @@ function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanin
               <span className={`day-task-check workout-check ${workoutOn(day) ? "checked" : ""}`}>{workoutOn(day) ? "✓" : ""}</span>
               <span className={workoutOn(day) ? "done" : ""}>健身</span>
             </label>
-            {isCleaningDay(day) ? (
-              <label className={`day-task cleaning-item ${cleaningMiss(day) ? "missed" : ""}`} onClick={() => void toggleCleaning(day)} title="点击标记 / 取消「阿姨未到」">
-                <span className={`day-task-check cleaning-check ${cleaningMiss(day) ? "" : "checked"}`}>{cleaningMiss(day) ? "" : "✓"}</span>
-                <span className={cleaningMiss(day) ? "done" : ""}>保洁 {CLEANING_TIME}{cleaningMiss(day) ? " · 未到" : ""}</span>
-              </label>
-            ) : (
-              <label className={`day-task cleaning-item ${cleaningExtra(day) ? "" : "cleaning-extra"}`} onClick={() => void toggleCleaningExtra(day)} title="点击添加 / 取消周末保洁补班">
-                <span className={`day-task-check cleaning-check ${cleaningExtra(day) ? "checked" : ""}`}>{cleaningExtra(day) ? "✓" : ""}</span>
-                <span className={cleaningExtra(day) ? "done" : ""}>保洁 {CLEANING_TIME} · 补班</span>
-              </label>
-            )}
             {!dayTasks.length && !workoutOn(day) && !events.some((event) => sameDay(event.startAt, day)) && <p className="day-empty">—</p>}
           </div>
           <button className="day-add" onClick={() => openTaskOn(day)}>+</button>
@@ -984,7 +932,6 @@ function TodayView({ events, tasks, allTasks, deals, contents, workouts, cleanin
       <article className="month-summary-card"><p className="summary-label">身体节奏</p><div className="summary-big">{workoutDays}<small>天</small></div><p className="summary-sub">本月训练天数</p></article>
       <article className="month-summary-card"><p className="summary-label">内容产出</p><div className="summary-row"><div className="summary-half"><span>{obCount}</span><small>篇笔记</small></div><div className="summary-half"><span>{completedDeals}</span><small>完成商单</small></div></div></article>
       <article className="month-summary-card"><p className="summary-label">商单金额</p><div className="summary-money"><div><span className="money-label">上月</span><strong>¥{lastMonthAmount.toLocaleString("zh-CN")}</strong></div><div><span className="money-label">本月</span><strong>¥{thisMonthAmount.toLocaleString("zh-CN")}</strong></div><div><span className="money-label">总计</span><strong>¥{totalAmount.toLocaleString("zh-CN")}</strong></div></div></article>
-      <article className="month-summary-card"><p className="summary-label">保洁结算</p><div className="summary-big">{Math.max(0, cleaningExpected - cleaningMissed) + cleaningExtraCount}<small>天</small></div><p className="summary-sub">本月应来 {cleaningExpected} 天 · 缺勤 {cleaningMissed} 天 · 补班 {cleaningExtraCount} 天</p></article>
     </div>
   </section>;
 }
@@ -1101,7 +1048,7 @@ function AssistantConversation({ assistant, chatting, open, deciding, setOpen, s
 }
 
 
-function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, notify }: { events: Event[]; workouts: Workout[]; cleanings: CleaningMark[]; tasks: Task[]; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
+function CalendarView({ events, workouts, tasks, openEdit, refresh, notify }: { events: Event[]; workouts: Workout[]; tasks: Task[]; openEdit: (task: Task) => void; refresh: () => Promise<void>; notify: (message: string) => void }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const start = new Date();
   const mondayOffset = (start.getDay() + 6) % 7;
@@ -1111,38 +1058,6 @@ function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, n
   const weekEnd = new Date(start); weekEnd.setDate(start.getDate() + 6);
   const eventIds = new Set(events.map((item) => item.id));
   const toLocalIso = (d: Date) => { const p = (n: number) => String(n).padStart(2, "0"); const offset = -d.getTimezoneOffset(); const sign = offset >= 0 ? "+" : "-"; const abs = Math.abs(offset); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00${sign}${p(Math.floor(abs / 60))}:${p(abs % 60)}`; };
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const CLEANING_DEFAULT_START = 10 * 60;
-  const CLEANING_DEFAULT_END = 12 * 60;
-  const cleaningHoursFor = (day: Date) => {
-    const key = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
-    const hoursMark = cleanings.find((mark) => mark.date === key && mark.kind === "hours" && mark.startMinutes !== null && mark.endMinutes !== null);
-    if (hoursMark) return { key, startMinutes: hoursMark.startMinutes!, endMinutes: hoursMark.endMinutes!, custom: true };
-    // 该日期的默认块已被移走时，拖动时长以原默认 2 小时计。
-    return { key, startMinutes: CLEANING_DEFAULT_START, endMinutes: CLEANING_DEFAULT_END, custom: false };
-  };
-  async function moveCleaningTo(day: Date, minuteOfDay: number, label: string, sourceId: string) {
-    const hours = cleaningHoursFor(day);
-    const sourceDate = /^cleaning-(\d{4}-\d{2}-\d{2})$/.exec(sourceId)?.[1] ?? "";
-    const sameDayMove = !sourceDate || sourceDate === hours.key;
-    const durationMinutes = hours.endMinutes - hours.startMinutes;
-    const clock = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
-    const startMinutes = minuteOfDay;
-    const endMinutes = Math.min(23 * 60 + 59, minuteOfDay + durationMinutes);
-    if (sameDayMove && hours.custom && hours.startMinutes === startMinutes && hours.endMinutes === endMinutes) return;
-    try {
-      const body: Record<string, unknown> = { kind: "cleaning", id: `cleaning-${hours.key}`, startMinutes, endMinutes };
-      if (!sameDayMove) body.fromDate = sourceDate;
-      const response = await fetch("/api/workspace", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error("保存失败");
-      await refresh();
-      notify(sameDayMove
-        ? `已将「${label}」移到${new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(day)} ${clock(startMinutes)}`
-        : `已将「${label}」移到${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(day)} ${clock(startMinutes)}`);
-    } catch {
-      notify("移动失败：服务暂不可用，请稍后重试");
-    }
-  }
   async function moveToCell(item: CalendarDragItem, day: Date, minuteOfDay: number) {
     const nextStart = new Date(day); nextStart.setHours(Math.floor(minuteOfDay / 60), minuteOfDay % 60, 0, 0);
     const timeLabel = time(nextStart.toISOString());
@@ -1196,28 +1111,7 @@ function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, n
   }
   const calendarPointerDrag = useCalendarPointerDrag(async (item, target) => {
     if (target.minuteOfDay === null) return;
-    if (item.kind === "cleaning") {
-      await moveCleaningTo(new Date(`${target.dateKey}T12:00:00`), target.minuteOfDay, item.label, item.id);
-      return;
-    }
     await moveToCell(item, new Date(`${target.dateKey}T12:00:00`), target.minuteOfDay);
-  });
-  const cleaningDays = days.filter((day) => {
-    const key = localDateKey(day);
-    // 默认周一至周五渲染保洁块；有自定义时间（hours）、已移走（moved）或补班（extra）的日期也渲染，周末拖入照样显示。
-    if (day.getDay() >= 1 && day.getDay() <= 5) return true;
-    return cleanings.some((mark) => mark.date === key && (mark.kind === "hours" || mark.kind === "moved" || mark.kind === "extra"));
-  });
-  const cleaningItems: Event[] = cleaningDays.map((day) => {
-    const hours = cleaningHoursFor(day);
-    const key = localDateKey(day);
-    const movedAway = cleanings.some((mark) => mark.date === key && mark.kind === "moved");
-    const extra = !movedAway && cleanings.some((mark) => mark.date === key && mark.kind === "extra");
-    const missed = !movedAway && !extra && cleanings.some((mark) => mark.date === key && mark.kind === "missed");
-    const startDate = new Date(day); startDate.setHours(Math.floor(hours.startMinutes / 60), hours.startMinutes % 60, 0, 0);
-    const endDate = new Date(day); endDate.setHours(Math.floor(hours.endMinutes / 60), hours.endMinutes % 60, 0, 0);
-    const clock = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
-    return { id: `cleaning-${key}`, title: movedAway ? "保洁 · 已移走" : missed ? "保洁 · 未到" : extra ? "保洁 · 补班" : "保洁阿姨", startAt: startDate.toISOString(), endAt: endDate.toISOString(), category: movedAway ? "cleaning-moved" : missed ? "cleaning-missed" : extra ? "cleaning-extra" : "cleaning", location: `${clock(hours.startMinutes)}–${clock(hours.endMinutes)}`, source: "cleaning" };
   });
   const taskItems: Event[] = tasks.flatMap((task) => {
     const startAt = calendarStartForTask(task);
@@ -1229,7 +1123,7 @@ function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, n
     id: workout.id, title: `训练 · ${workout.type}`, startAt: workout.startedAt,
     endAt: new Date(new Date(workout.startedAt).getTime() + workout.durationMinutes * 60000).toISOString(),
     category: "health", location: `${workout.durationMinutes} 分钟 · ${workout.intensity}`, source: "workspace-health",
-  })), ...cleaningItems, ...taskItems];
+  })), ...taskItems];
   async function resizeCalendarItem(item: CalendarResizeItem, durationMinutes: number) {
     try {
       let payload: Record<string, unknown>;
@@ -1270,9 +1164,8 @@ function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, n
             const item = entry.item;
             const taskId = item.source === "task" ? item.id.slice(5) : "";
             const task = taskId ? tasks.find((candidate) => candidate.id === taskId) : null;
-            const isCleaning = item.source === "cleaning";
-            const draggable = item.source === "task" || item.source === "workspace-health" || isCleaning || eventIds.has(item.id);
-            const kind: CalendarDragItem["kind"] = task ? "task" : isCleaning ? "cleaning" : item.source === "workspace-health" ? "workout" : "event";
+            const draggable = item.source === "task" || item.source === "workspace-health" || eventIds.has(item.id);
+            const kind: CalendarDragItem["kind"] = task ? "task" : item.source === "workspace-health" ? "workout" : "event";
             const sourceId = task?.id ?? item.id;
             const dragItem: CalendarDragItem = { kind, id: sourceId, label: item.title };
             const startMinute = new Date(item.startAt).getHours() * 60 + new Date(item.startAt).getMinutes();
@@ -1284,7 +1177,7 @@ function CalendarView({ events, workouts, cleanings, tasks, openEdit, refresh, n
               left: `calc(${entry.column * columnWidth}% + 3px)`,
               width: `calc(${columnWidth}% - 6px)`,
             };
-            return <div className={`calendar-time-block mini-event ${item.category}`} style={blockStyle} key={item.id} data-calendar-draggable={draggable ? "true" : undefined} role={task ? "button" : undefined} tabIndex={task ? 0 : undefined} title={task ? "拖动改时间 · 拖底边改时长 · 点击编辑" : isCleaning ? "拖动改当天保洁时间" : draggable ? "拖动改时间 · 拖底边改时长" : "固定安排"} onPointerDown={(pointerEvent) => { if (draggable) calendarPointerDrag.begin(dragItem, pointerEvent); }} onClick={() => { if (task && !calendarPointerDrag.suppressClick() && !calendarResize.suppressClick()) openEdit(task); }} onKeyDown={(keyEvent) => { if (task && (keyEvent.key === "Enter" || keyEvent.key === " ")) { keyEvent.preventDefault(); openEdit(task); } }}><strong>{item.title}</strong><span>{time(item.startAt)}–{time(item.endAt)}</span><small>{durationText(entry.durationMinutes)}</small>{draggable && !isCleaning && <i className="calendar-resize-handle" aria-label={`调整「${item.title}」时长`} title="拖动调整时长" onPointerDown={(pointerEvent) => calendarResize.begin(resizeItem, pointerEvent)} onClick={(clickEvent) => { clickEvent.preventDefault(); clickEvent.stopPropagation(); }} />}</div>;
+            return <div className={`calendar-time-block mini-event ${item.category}`} style={blockStyle} key={item.id} data-calendar-draggable={draggable ? "true" : undefined} role={task ? "button" : undefined} tabIndex={task ? 0 : undefined} title={task ? "拖动改时间 · 拖底边改时长 · 点击编辑" : draggable ? "拖动改时间 · 拖底边改时长" : "固定安排"} onPointerDown={(pointerEvent) => { if (draggable) calendarPointerDrag.begin(dragItem, pointerEvent); }} onClick={() => { if (task && !calendarPointerDrag.suppressClick() && !calendarResize.suppressClick()) openEdit(task); }} onKeyDown={(keyEvent) => { if (task && (keyEvent.key === "Enter" || keyEvent.key === " ")) { keyEvent.preventDefault(); openEdit(task); } }}><strong>{item.title}</strong><span>{time(item.startAt)}–{time(item.endAt)}</span><small>{durationText(entry.durationMinutes)}</small>{draggable && <i className="calendar-resize-handle" aria-label={`调整「${item.title}」时长`} title="拖动调整时长" onPointerDown={(pointerEvent) => calendarResize.begin(resizeItem, pointerEvent)} onClick={(clickEvent) => { clickEvent.preventDefault(); clickEvent.stopPropagation(); }} />}</div>;
           })}</div>)}
         </div>
       </div>

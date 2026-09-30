@@ -43,17 +43,6 @@ CREATE TABLE `assistant_settings` (
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `cleaning_marks` (
-	`id` text PRIMARY KEY NOT NULL,
-	`date` text NOT NULL,
-	`note` text DEFAULT '' NOT NULL,
-	`kind` text DEFAULT 'missed' NOT NULL,
-	`start_minutes` integer,
-	`end_minutes` integer,
-	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX `idx_cleaning_marks_date` ON `cleaning_marks` (`date`);--> statement-breakpoint
 CREATE TABLE `content_items` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
@@ -207,4 +196,11 @@ CREATE TABLE `workouts` (
 	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `idx_workouts_started_at` ON `workouts` (`started_at`);
+CREATE INDEX `idx_workouts_started_at` ON `workouts` (`started_at`);--> statement-breakpoint
+CREATE TABLE `workspace_settings` (
+	`id` text PRIMARY KEY NOT NULL,
+	`enabled_modules` text DEFAULT '[]' NOT NULL,
+	`goals` text DEFAULT '{"annual":[],"quarterly":[]}' NOT NULL,
+	`onboarded_at` text,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
