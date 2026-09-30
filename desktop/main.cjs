@@ -293,6 +293,9 @@ async function ensureServer() {
     cwd: serverRoot,
     env: childEnvironment,
     stdio: ["ignore", "pipe", "pipe"],
+    // Its own process group so stopServerProcess can reach workerd too; on
+    // Windows a detached child would open a console window, so taskkill /T instead.
+    detached: process.platform !== "win32",
   });
   serverProcess.stdout.on("data", (chunk) => log(`[server] ${String(chunk).trim()}`));
   serverProcess.stderr.on("data", (chunk) => log(`[server:error] ${String(chunk).trim()}`));
@@ -304,6 +307,36 @@ async function ensureServer() {
   serverProcess.once("error", (error) => log(`local server spawn failed: ${error.message}`));
 
   if (!(await waitForServer())) throw new Error("本地服务没有在 45 秒内准备好");
+}
+
+// Killing the wrangler wrapper alone leaves workerd holding the port, so the
+// whole process group has to go down with it.
+function stopServerProcess() {
+  const child = serverProcess;
+  if (!child || child.killed) return;
+  serverProcess = null;
+  try {
+    if (process.platform === "win32") {
+      spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      return;
+    }
+    process.kill(-child.pid, "SIGTERM");
+    setTimeout(() => {
+      try {
+        process.kill(-child.pid, 0);
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // already gone
+      }
+    }, 3000).unref();
+  } catch (error) {
+    log(`stopping local server failed: ${error.message}`);
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // already gone
+    }
+  }
 }
 
 async function recoverServer() {
@@ -642,5 +675,5 @@ app.on("before-quit", () => {
   quitting = true;
   if (scheduleTimer) clearTimeout(scheduleTimer);
   globalShortcut.unregisterAll();
-  if (serverProcess && !serverProcess.killed) serverProcess.kill("SIGTERM");
+  stopServerProcess();
 });
