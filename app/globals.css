@@ -289,17 +289,15 @@ button { color:inherit; }
 .setup-field input::placeholder,.setup-field textarea::placeholder{color:#a4ada6}
 
 .setup-modules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.setup-option{display:grid;grid-template-columns:20px 1fr;gap:11px;align-items:start;border:1px solid #ded8cb;border-radius:13px;padding:13px 14px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s}
+.setup-option{position:relative;display:grid;grid-template-columns:20px 1fr;gap:11px;align-items:start;border:1px solid #ded8cb;border-radius:13px;padding:13px 14px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s}
 .setup-option:hover{border-color:#b9c4b6}
 .setup-option.on{border-color:#16281f;background:#f1f4ef}
-.setup-option input{position:absolute;opacity:0;width:0;height:0}
-.setup-box{width:20px;height:20px;border:1.5px solid #b9b3a6;border-radius:6px;display:grid;place-items:center;background:#fff;transition:border-color .15s,background .15s}
-.setup-box.radio{border-radius:50%}
-.setup-option.on .setup-box{border-color:#16281f;background:#16281f}
-.setup-box svg{width:12px;height:12px;stroke:#fff;stroke-width:2.6;fill:none;opacity:0;transition:opacity .12s}
-.setup-option.on .setup-box svg{opacity:1}
-.setup-box.radio::after{content:"";width:8px;height:8px;border-radius:50%;background:#fff;opacity:0;transition:opacity .12s}
-.setup-option.on .setup-box.radio::after{opacity:1}
+.setup-option input{appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:1px 0 0;border:1.5px solid #b9b3a6;border-radius:6px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s}
+.setup-option input[type=radio]{border-radius:50%}
+.setup-option input:hover{border-color:#16281f}
+.setup-option input:checked{background-color:#16281f;border-color:#16281f;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M3.4 8.4l3.1 3.1L12.6 5'/></svg>");background-size:14px;background-position:center;background-repeat:no-repeat}
+.setup-option input[type=radio]:checked{background-image:radial-gradient(circle,#fff 0 4.5px,transparent 5px)}
+.setup-option input:focus-visible{outline:2px solid #16281f;outline-offset:2px}
 .setup-option-text{display:grid;gap:3px}
 .setup-option-text strong{font-size:13.5px;color:#16281f}
 .setup-option-text small{font-size:12px;color:#6b7770;line-height:1.55}
