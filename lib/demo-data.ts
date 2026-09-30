@@ -106,16 +106,16 @@ export const demoWorkouts = [
 ];
 
 export const demoPromotions = [
-  { platform: "视频号", topic: "AI 工具实测月", startOffset: -5, endOffset: 9, rules: "带话题发布满 4 条可进流量池", note: "本周先发 2 条", status: "active" },
-  { platform: "公众号", topic: "读书季征稿", startOffset: -12, endOffset: 3, rules: "原创长文，阅读量前 20 给推荐位", note: "投稿已提交", status: "active" },
-  { platform: "小红书", topic: "夏日探店", startOffset: 2, endOffset: 24, rules: "图文满 3 张 + 定位", note: "等南屿咖啡素材回传", status: "planned" },
+  { platform: "视频号", topic: "AI 工具实测月", startOffset: -5, endOffset: 9, rules: "带话题发布满 4 条可进流量池", note: "本周先发 2 条" },
+  { platform: "公众号", topic: "读书季征稿", startOffset: -12, endOffset: 3, rules: "原创长文，阅读量前 20 给推荐位", note: "投稿已提交" },
+  { platform: "小红书", topic: "夏日探店", startOffset: 2, endOffset: 24, rules: "图文满 3 张 + 定位", note: "等南屿咖啡素材回传" },
 ];
 
 export const demoProducts = [
   { name: "个人工作台", path: "workspace", stage: "开发中", note: "开源整理进行中，先做隐私清理与安装包" },
   { name: "素材库管理器", path: "media-library", stage: "开发中", note: "本地索引已跑通，待做批量打标" },
   { name: "写作选题库", path: "ideas", stage: "计划中", note: "想清楚是独立产品还是工作台的一个模块" },
-  { name: "复盘模板集", path: "review-templates", stage: "已上线", note: "每月更新一次" },
+  { name: "复盘模板集", path: "review-templates", stage: "已发布", note: "每月更新一次" },
 ];
 
 export const demoReviews = [
@@ -242,7 +242,6 @@ export function buildDemoRows() {
       endDate: on(item.endOffset),
       rules: item.rules,
       note: item.note,
-      status: item.status,
     })),
     products: demoProducts.map((item) => ({
       id: demoId("product"),

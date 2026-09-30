@@ -2,6 +2,7 @@
 
 import { FormEvent, PointerEvent as ReactPointerEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { DEAL_CATEGORY_OPTIONS } from "../lib/deals";
+import { formatPlatformRange, groupPromotions, isExpiringSoon, knownPlatforms, localToday } from "../lib/platforms";
 import { MODULES, type ModuleId } from "../lib/modules";
 import { currentQuarterLabel, type Goals } from "../lib/goals";
 import { BRAND } from "../lib/brand";
@@ -34,7 +35,7 @@ type Deal = { id: string; brand: string; campaign: string; stage: string; nextAc
 type ContentItem = { id: string; title: string; kind: string; status: string; wordCount: number; pendingCount: number; linkedDeal: string | null; modifiedAt: string; createdAt: string };
 type Ingredient = { id: string; name: string; amount: string; category: string; storage: string; expiresAt: string | null; note: string };
 type Workout = { id: string; type: string; startedAt: string; durationMinutes: number; intensity: string; notes: string; source: string };
-type PlatformPromotion = { id: string; platform: string; topic: string; startDate: string | null; endDate: string | null; rules: string; note: string; status: string };
+type PlatformPromotion = { id: string; platform: string; topic: string; startDate: string | null; endDate: string | null; rules: string; note: string };
 type PersonalProduct = { id: string; name: string; path: string; stage: string; note: string };
 type ReviewPeriod = "daily" | "weekly" | "monthly";
 type DailyReviewContent = { summary: string; wins: string[]; unfinished: Array<{ item: string; action: string }>; signals: string[]; tomorrowTop3: Array<{ title: string; why: string; minutes: number }>; question: string };
@@ -1481,15 +1482,9 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ platform: "", topic: "", startDate: "", endDate: "", rules: "", note: "" });
 
-  const platforms = ["小红书", "抖音", "视频号", "B站"];
-  const now = new Date();
-  const active = promotions.filter((p) => p.status === "active");
-  const expired = promotions.filter((p) => p.status === "expired");
-  const grouped = platforms.map((platform) => ({
-    platform,
-    items: active.filter((p) => p.platform === platform),
-  })).filter((g) => g.items.length > 0);
-  const ungrouped = active.filter((p) => !platforms.includes(p.platform));
+  const today = localToday();
+  const { grouped, expired } = groupPromotions(promotions, today);
+  const suggestions = knownPlatforms(promotions);
 
   async function addPromotion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1514,21 +1509,6 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
     } catch (error) { notify(error instanceof Error ? error.message : "删除失败"); }
   }
 
-  const dateRange = (p: PlatformPromotion) => {
-    if (!p.startDate && !p.endDate) return "";
-    const fmt = (d: string) => new Date(d).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
-    if (p.startDate && p.endDate) return `${fmt(p.startDate)} – ${fmt(p.endDate)}`;
-    if (p.startDate) return `从 ${fmt(p.startDate)} 起`;
-    return p.endDate ? `到 ${fmt(p.endDate)} 止` : "";
-  };
-
-  const isExpiringSoon = (p: PlatformPromotion) => {
-    if (!p.endDate) return false;
-    const end = new Date(p.endDate);
-    const diff = (end.getTime() - now.getTime()) / 86400000;
-    return diff >= 0 && diff <= 7;
-  };
-
   return <section>
 
     <div className="platforms-grid">
@@ -1537,14 +1517,14 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
           <header><span className="platform-dot" /><h3>{group.platform}</h3><span className="platform-count">{group.items.length}</span></header>
           <div className="platform-list">
             {group.items.map((item) => (
-              <div key={item.id} className={`platform-item ${isExpiringSoon(item) ? "expiring" : ""}`}>
+              <div key={item.id} className={`platform-item ${isExpiringSoon(item, today) ? "expiring" : ""}`}>
                 <div className="platform-item-main">
                   <strong>{item.topic}</strong>
                   {item.rules && <p>{item.rules}</p>}
                   {item.note && <small>{item.note}</small>}
                 </div>
                 <div className="platform-item-meta">
-                  {dateRange(item) && <time>{dateRange(item)}</time>}
+                  {formatPlatformRange(item) && <time>{formatPlatformRange(item)}</time>}
                   <button onClick={() => void removePromotion(item.id)} aria-label="删除">×</button>
                 </div>
               </div>
@@ -1552,27 +1532,7 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
           </div>
         </article>
       ))}
-      {ungrouped.length > 0 && (
-        <article className="platform-card">
-          <header><span className="platform-dot" /><h3>其他平台</h3><span className="platform-count">{ungrouped.length}</span></header>
-          <div className="platform-list">
-            {ungrouped.map((item) => (
-              <div key={item.id} className={`platform-item ${isExpiringSoon(item) ? "expiring" : ""}`}>
-                <div className="platform-item-main">
-                  <strong>{item.topic}</strong>
-                  <small>{item.platform}</small>
-                  {item.rules && <p>{item.rules}</p>}
-                </div>
-                <div className="platform-item-meta">
-                  {dateRange(item) && <time>{dateRange(item)}</time>}
-                  <button onClick={() => void removePromotion(item.id)} aria-label="删除">×</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      )}
-      {active.length === 0 && <div className="empty-platforms">暂无记录</div>}
+      {grouped.length === 0 && <div className="empty-platforms">暂无记录</div>}
     </div>
 
     {expired.length > 0 && (
@@ -1586,6 +1546,7 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
                 <small>{item.platform}</small>
               </div>
               <div className="platform-item-meta">
+                {formatPlatformRange(item) && <time>{formatPlatformRange(item)}</time>}
                 <button onClick={() => void removePromotion(item.id)} aria-label="删除">×</button>
               </div>
             </div>
@@ -1597,11 +1558,8 @@ function PlatformsView({ promotions, refresh, notify }: { promotions: PlatformPr
     <section className="panel platform-form-panel">
       <div className="panel-heading"><h2>添加扶持话题</h2></div>
       <form className="health-form platform-form" onSubmit={addPromotion}>
-        <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} aria-label="平台">
-          <option value="">选择平台…</option>
-          {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
-          <option value="其他">其他</option>
-        </select>
+        <input list="platform-suggestions" value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="平台，例如：小红书" aria-label="平台" />
+        <datalist id="platform-suggestions">{suggestions.map((platform) => <option key={platform} value={platform} />)}</datalist>
         <input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder="扶持话题，例如：秋日穿搭" aria-label="话题" />
         <input value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} type="date" aria-label="开始日期" />
         <input value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} type="date" aria-label="结束日期" />

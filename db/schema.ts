@@ -123,7 +123,6 @@ export const platformPromotions = sqliteTable("platform_promotions", {
   endDate: text("end_date"),
   rules: text("rules").notNull().default(""),
   note: text("note").notNull().default(""),
-  status: text("status").notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("idx_platform_promotions_platform").on(table.platform)]);
 

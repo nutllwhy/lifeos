@@ -54,8 +54,7 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS platform_promotions (
     id TEXT PRIMARY KEY, platform TEXT NOT NULL, topic TEXT NOT NULL,
     start_date TEXT, end_date TEXT, rules TEXT NOT NULL DEFAULT '',
-    note TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS personal_products (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL,

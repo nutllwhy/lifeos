@@ -160,7 +160,6 @@ CREATE TABLE `platform_promotions` (
 	`end_date` text,
 	`rules` text DEFAULT '' NOT NULL,
 	`note` text DEFAULT '' NOT NULL,
-	`status` text DEFAULT 'active' NOT NULL,
 	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint

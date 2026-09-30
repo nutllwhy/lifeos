@@ -4,7 +4,7 @@ import { ensureDatabase } from "../../../db/runtime";
 import { assistantMemories, assistantMessages, assistantOperations, assistantSettings, contentItems, dailyReviews, deals, events, expenseEntries, focusSessions, ingredients, personalProducts, platformPromotions, tasks, workouts, workspaceSettings } from "../../../db/schema";
 import { buildDemoRows, demoGoals } from "../../../lib/demo-data";
 import { normalizeModules, type ModuleId } from "../../../lib/modules";
-import { parseGoals, type Goals } from "../../../lib/goals";
+import { parseGoals } from "../../../lib/goals";
 import { DEAL_CATEGORY_OPTIONS, DEAL_STAGES, normalizeDealCategories, normalizeDealStage, toDealView, type DealStage } from "../../../lib/deals";
 import { findRetryableExpenseRequest, generateReview, hasExplicitMutationIntent, inferEventDeletionAction, inferPersonalProductAction, isAssistantRetryRequest, isExpenseCaptureRequest, runAssistantConversation, runExpenseCapture, type AssistantAction, type AssistantMemoryWrite, type ConversationContext, type ReviewContext } from "../../../lib/personal-assistant";
 import { expenseAmountToCents, expenseDateTime, normalizeExpenseCategory } from "../../../lib/expenses";
