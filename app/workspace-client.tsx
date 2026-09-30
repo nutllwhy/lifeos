@@ -768,8 +768,8 @@ function GoalsEditor({ goals, busy, onSave, notify }: { goals: Goals; busy: bool
   }
 
   return <div className="goals-editor">
-    <label>年度计划<textarea rows={3} value={annual} disabled={busy || saving} onChange={(event) => setAnnual(event.target.value)} placeholder="一行一个" /></label>
-    <label>本季度重点<textarea rows={3} value={quarterly} disabled={busy || saving} onChange={(event) => setQuarterly(event.target.value)} placeholder="一行一个" /></label>
+    <label className="setup-field">年度计划<textarea rows={3} value={annual} disabled={busy || saving} onChange={(event) => setAnnual(event.target.value)} placeholder="一行一个" /></label>
+    <label className="setup-field">本季度重点<textarea rows={3} value={quarterly} disabled={busy || saving} onChange={(event) => setQuarterly(event.target.value)} placeholder="一行一个" /></label>
     <div className="goals-editor-actions"><button className="connection-action" disabled={busy || saving} onClick={() => void save()}>{saving ? "正在保存…" : "保存目标"}</button></div>
   </div>;
 }
@@ -2114,13 +2114,9 @@ function ConnectionsView({ assistant, meta, settings, saveModules, openSetup, de
       <div className="panel-heading"><h2>模块</h2></div>
       <p className="settings-footnote" style={{ padding: "0 20px 10px" }}>关掉用不到的模块，侧栏就不再显示它。今天、日历和设置常驻。</p>
       <div className="setup-modules" style={{ padding: "0 20px 18px" }}>
-        {MODULES.map((module) => {
-          const on = enabledModules.includes(module.id);
-          return <label className={on ? "setup-module on" : "setup-module"} key={module.id}>
-            <input type="checkbox" checked={on} disabled={moduleBusy} onChange={() => void toggleModule(module.id)} />
-            <span><strong>{module.label}</strong><small>{module.blurb}</small></span>
-          </label>;
-        })}
+        {MODULES.map((module) => (
+          <SetupOption key={module.id} kind="check" checked={enabledModules.includes(module.id)} title={module.label} blurb={module.blurb} onToggle={() => void toggleModule(module.id)} />
+        ))}
       </div>
     </section>
 
@@ -2296,6 +2292,16 @@ function Composer({ kind, close, saved, editingTask, defaultDueDate, notify }: {
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><form className="composer" onSubmit={submit}><header><h2>{kind === "task" ? (editingTask ? "编辑任务" : "新建任务") : kind === "event" ? "安排日程" : kind === "content" ? "新建稿件" : "新建商单"}</h2><button type="button" onClick={close} aria-label="关闭">×</button></header>{kind === "task" && <><label>任务名称<input name="title" autoFocus required defaultValue={editingTask?.title ?? ""} placeholder="例如：整理商单初稿" /></label><div className="form-row"><label>项目<input name="project" defaultValue={editingTask?.project ?? "收件箱"} /></label><label>任务时长（分钟）<input type="number" name="estimatedMinutes" min="15" max="720" step="15" required defaultValue={editingTask?.estimatedMinutes ?? 30} /></label></div><div className="form-row"><label>优先级<select name="priority" defaultValue={editingTask?.priority ?? "medium"}><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label><label>任务日期<input type="date" name="dueDate" defaultValue={editingTask?.dueDate ? editingTask.dueDate.slice(0, 10) : defaultDueDate ?? ""} /></label></div><label>开始时间（可留空）<input type="time" name="scheduledTime" defaultValue={timeFieldValue(editingTask ? calendarStartForTask(editingTask) : null)} /></label></>}{kind === "event" && <><label>日程标题<input name="title" autoFocus required placeholder="例如：商单方案对齐" /></label><div className="form-row"><label>开始<input type="datetime-local" name="startAt" required defaultValue={now.toISOString().slice(0, 16)} /></label><label>结束<input type="datetime-local" name="endAt" required defaultValue={later.toISOString().slice(0, 16)} /></label></div><label>地点<input name="location" placeholder="线上会议 / 线下" /></label></>}{kind === "content" && <><label>稿件标题<input name="title" autoFocus required placeholder="例如：AI 客服实测脚本" /></label><div className="form-row"><label>类型<input name="type" placeholder="长视频脚本 / 公众号文章…" /></label><label>状态<select name="status"><option>构思中</option><option>写作中</option><option>初稿完成</option><option>待审核</option><option>待发布</option><option>已发布</option><option>已归档</option></select></label></div><div className="form-row"><label>字数<input type="number" name="wordCount" min="0" step="50" defaultValue="0" /></label><label>待补点<input type="number" name="pendingCount" min="0" step="1" defaultValue="0" /></label></div><label>关联商单<input name="linkedDeal" placeholder="留空表示不关联" /></label></>}{kind === "deal" && <><label>商单名称<input name="title" autoFocus required placeholder="例如：新品公众号合作" /></label><fieldset className="deal-category-field"><legend>商单类别</legend><div className="deal-category-options">{DEAL_CATEGORY_OPTIONS.map((category) => <label key={category}><input type="checkbox" name="categories" value={category} /><span>{category}</span></label>)}</div></fieldset><div className="form-row"><label>状态<select name="stage"><option value="lead">未开始</option><option value="execution">进行中</option><option value="delivery">已完成</option><option value="paid">已结算</option></select></label><label>归属月份<input type="month" name="month" defaultValue={thisMonth} /></label></div><div className="form-row"><label>执行价格<input type="number" name="price" min="0" step="1" inputMode="decimal" /></label><label>打款金额<input type="number" name="paidAmount" min="0" step="0.01" inputMode="decimal" /></label></div><div className="form-row"><label>接单日期<input type="date" name="receivedAt" defaultValue={today} /></label><label>发布日期<input type="date" name="publishedAt" /></label></div></>}<footer><span>按 Esc 关闭</span>{kind === "task" && editingTask && <button type="button" className="danger-button" disabled={deleting} onClick={() => void removeTask()}>{deleting ? "正在删除…" : "删除任务"}</button>}<button className="primary-button" disabled={saving}>{saving ? "正在保存…" : editingTask ? "保存修改" : "收入工作台"}</button></footer></form></div>;
 }
 
+function SetupOption({ checked, kind, title, blurb, onToggle }: { checked: boolean; kind: "check" | "radio"; title: string; blurb: string; onToggle: () => void }) {
+  return <label className={checked ? "setup-option on" : "setup-option"}>
+    <input type={kind === "radio" ? "radio" : "checkbox"} checked={checked} onChange={onToggle} />
+    <span className={kind === "radio" ? "setup-box radio" : "setup-box"} aria-hidden="true">
+      {kind === "check" && <svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    </span>
+    <span className="setup-option-text"><strong>{title}</strong><small>{blurb}</small></span>
+  </label>;
+}
+
 function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantState; onClose: () => void; onFinish: (modules: ModuleId[], goals: Goals, withDemo: boolean, ai: { baseUrl: string; model: string; apiKey: string } | null) => Promise<void> }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<ModuleId[]>([...MODULES.map((module) => module.id)]);
@@ -2307,6 +2313,7 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const steps = ["欢迎", "选择模块", "写下目标", "智能助理", "开始使用"];
+  const last = steps.length - 1;
 
   function toggle(id: ModuleId) {
     setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -2325,8 +2332,8 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
 
   return <div className="modal-backdrop setup-backdrop"><div className="setup-card">
     <header className="setup-header">
-      <div><p className="eyebrow">{`第 ${step + 1} / ${steps.length} 步`}</p><h2>{steps[step]}</h2></div>
-      {onClose && <button type="button" className="setup-ghost" onClick={onClose}>稍后再说</button>}
+      <p className="eyebrow">{`第 ${step + 1} 步 / 共 ${steps.length} 步`}</p>
+      <h2>{steps[step]}</h2>
       <div className="setup-dots">{steps.map((label, index) => <span key={label} className={index === step ? "on" : ""} />)}</div>
     </header>
 
@@ -2340,45 +2347,49 @@ function SetupWizard({ assistant, onClose, onFinish }: { assistant: AssistantSta
     </div>}
 
     {step === 1 && <div className="setup-body">
-      <p className="setup-hint">点掉你暂时不需要的，默认全部开启。</p>
+      <p className="setup-hint">点掉你暂时不需要的，默认全部开启。今天、日历和设置常驻。</p>
       <div className="setup-modules">{MODULES.map((module) => (
-        <label key={module.id} className={picked.includes(module.id) ? "setup-module on" : "setup-module"}>
-          <input type="checkbox" checked={picked.includes(module.id)} onChange={() => toggle(module.id)} />
-          <span><strong>{module.label}</strong><small>{module.blurb}</small></span>
-        </label>
+        <SetupOption key={module.id} kind="check" checked={picked.includes(module.id)} title={module.label} blurb={module.blurb} onToggle={() => toggle(module.id)} />
       ))}</div>
     </div>}
 
     {step === 2 && <div className="setup-body">
-      <p className="setup-hint">用一行一个，写下你今年和本季度想推进的事。留空也没关系，之后随时能在设置里补。</p>
-      <label>年度计划<textarea rows={3} value={annual} onChange={(event) => setAnnual(event.target.value)} placeholder={"例如：把内容分发做到三个平台"} /></label>
-      <label>本季度重点<textarea rows={3} value={quarterly} onChange={(event) => setQuarterly(event.target.value)} placeholder={"例如：完成 5 篇长视频"} /></label>
+      <p className="setup-hint">一行一个，写下你今年和本季度想推进的事。留空也可以，之后在设置里补。</p>
+      <label className="setup-field">年度计划
+        <textarea rows={3} value={annual} onChange={(event) => setAnnual(event.target.value)} placeholder={"例如：跑通第二个收入来源\n例如：作品进入所在领域前 5%"} />
+      </label>
+      <label className="setup-field">本季度重点
+        <textarea rows={3} value={quarterly} onChange={(event) => setQuarterly(event.target.value)} placeholder={"例如：上线第一个付费产品\n例如：完成 10 条长视频并保持周更"} />
+      </label>
     </div>}
 
     {step === 3 && <div className="setup-body">
       <p className="setup-hint">这一步可以完全跳过，之后在设置页里填也一样。</p>
-      <label>API 地址<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://.../v4" autoComplete="off" /></label>
-      <label>对话模型<input value={model} onChange={(event) => setModel(event.target.value)} placeholder="glm-5.3-flash" autoComplete="off" /></label>
-      <label>API Key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="留空表示暂时不配置" autoComplete="new-password" /></label>
+      <label className="setup-field">API 地址
+        <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://.../v1" autoComplete="off" spellCheck={false} />
+      </label>
+      <label className="setup-field">对话模型
+        <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="glm-5.3-flash" autoComplete="off" spellCheck={false} />
+      </label>
+      <label className="setup-field">API Key
+        <input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="留空表示暂时不配置" autoComplete="new-password" />
+      </label>
       <p className="settings-footnote">Key 只写入本机数据库，页面读取配置时不会把它回传给浏览器。</p>
     </div>}
 
     {step === 4 && <div className="setup-body">
-      <p className="setup-hint">你可以从空白开始，也可以先载入一套虚构的演示数据看看每个视图用起来是什么样子。</p>
-      <label className={withDemo ? "setup-choice on" : "setup-choice"}>
-        <input type="radio" name="setupdata" checked={withDemo} onChange={() => setWithDemo(true)} />
-        <span><strong>载入演示数据</strong><small>虚构的商单、支出、食材与复盘，随时可以在设置里一键清除。</small></span>
-      </label>
-      <label className={withDemo ? "setup-choice" : "setup-choice on"}>
-        <input type="radio" name="setupdata" checked={!withDemo} onChange={() => setWithDemo(false)} />
-        <span><strong>从空白开始</strong><small>直接添加你自己的第一条任务和日程。</small></span>
-      </label>
+      <p className="setup-hint">你可以从空白开始，也可以先载入一套虚构的演示数据，看看每个视图用起来是什么样子。</p>
+      <div className="setup-modules single">
+        <SetupOption kind="radio" checked={withDemo} title="载入演示数据" blurb="虚构的商单、支出、食材与复盘，随时可以在设置里一键清除。" onToggle={() => setWithDemo(true)} />
+        <SetupOption kind="radio" checked={!withDemo} title="从空白开始" blurb="直接添加你自己的第一条任务和日程。" onToggle={() => setWithDemo(false)} />
+      </div>
       <p className="settings-footnote">已选模块：{picked.length ? picked.map((id) => MODULES.find((module) => module.id === id)?.label).join("、") : "仅核心视图"}</p>
     </div>}
 
     <footer className="setup-footer">
-      <button type="button" className="setup-ghost" disabled={step === 0 || saving} onClick={() => setStep((current) => current - 1)}>上一步</button>
-      {step < steps.length - 1
+      {step > 0 && step < last ? <button type="button" className="setup-ghost" onClick={onClose}>稍后再说</button> : <span />}
+      {step > 0 && <button type="button" className="setup-ghost" disabled={saving} onClick={() => setStep((current) => current - 1)}>上一步</button>}
+      {step < last
         ? <button type="button" className="primary-button" onClick={() => setStep((current) => current + 1)}>下一步</button>
         : <button type="button" className="primary-button" disabled={saving} onClick={() => void submit()}>{saving ? "正在准备…" : "进入 LifeOS"}</button>}
     </footer>

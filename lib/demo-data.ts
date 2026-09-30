@@ -26,8 +26,8 @@ function monthKey(offset: number) {
 const DEMO = "demo";
 
 export const demoGoals = {
-  annual: ["把内容分发稳定到三个平台", "做出一个有人愿意付费的小工具"],
-  quarterly: ["完成 5 条长视频", "上线工作台开源版", "每周训练 3 次不断档"],
+  annual: ["跑通第二个收入来源，摆脱单一平台依赖", "把作品做成所在领域可被点名的那一个"],
+  quarterly: ["上线第一个有人付费的小工具", "完成 10 条长视频并保持周更不断档"],
 };
 
 export const demoTasks = [
