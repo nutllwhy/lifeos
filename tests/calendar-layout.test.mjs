@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { layoutCalendarDay } from "../lib/calendar-layout.ts";
 
-const event = (id, start, end) => ({ id, startAt: `2026-08-31T${start}:00+08:00`, endAt: `2026-08-31T${end}:00+08:00` });
+// The layout reads wall-clock hours, which is what the calendar shows, so the
+// fixtures have to be built in the machine's own zone. Writing literal
+// "+08:00" instants made these tests pass only on a UTC+8 box.
+const event = (id, start, end) => {
+  const at = (hhmm) => {
+    const [hour, minute] = hhmm.split(":").map(Number);
+    return new Date(2026, 7, 31, hour, minute).toISOString();
+  };
+  return { id, startAt: at(start), endAt: at(end) };
+};
 
 test("maps event duration to continuous timeline minutes", () => {
   const [item] = layoutCalendarDay([event("workout", "09:00", "11:00")]);
