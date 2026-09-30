@@ -14,7 +14,7 @@
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "desktop": "npm run build && electron .",
     "check:privacy": "node scripts/check-privacy.mjs",
-    "dist:mac": "npm run build && node scripts/fetch-node.mjs && electron-builder --mac --arm64 --x64",
+    "dist:mac": "npm run build && node scripts/fetch-node.mjs && electron-builder --mac",
     "dist:win": "npm run build && node scripts/fetch-node.mjs && electron-builder --win --x64",
     "test": "node scripts/check-privacy.mjs && npm run build && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/task-scheduler.test.mjs tests/calendar-layout.test.mjs tests/expenses.test.mjs tests/deals.test.mjs tests/platforms.test.mjs tests/modules.test.mjs",
     "lint": "eslint .",
@@ -77,13 +77,6 @@
       {
         "from": "public",
         "to": "runtime/public",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "build-node",
-        "to": "node",
         "filter": [
           "**/*"
         ]
