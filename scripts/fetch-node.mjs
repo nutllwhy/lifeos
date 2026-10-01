@@ -7,7 +7,7 @@
 // arm64 and an x64 app built in the same run.
 import { spawnSync } from "node:child_process";
 import { closeSync, openSync, readSync } from "node:fs";
-import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const NODE_VERSION = "22.18.0";
@@ -74,8 +74,7 @@ async function stage(targetKey) {
   const source = path.join(work, fileBase, targetKey.startsWith("win32") ? binaryName : path.join("bin", binaryName));
   await mkdir(path.dirname(destination), { recursive: true });
   await rm(destination, { force: true });
-  const move = spawnSync("mv", [source, destination], { stdio: "inherit" });
-  if (move.status !== 0) throw new Error(`could not place the ${targetKey} node binary`);
+  await rename(source, destination);
   await chmod(destination, 0o755);
   await writeFile(stamp, `node v${NODE_VERSION} for ${targetKey}\n`);
   await rm(work, { recursive: true, force: true });
